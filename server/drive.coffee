@@ -10,7 +10,8 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 
 # Drive folder settings
 ROOT_FOLDER_NAME = Meteor.settings.folder or "MIT Mystery Hunt 2014"
-CODEX_ACCOUNT = 'zouchenuttall@gmail.com'
+CODEX_ACCOUNT = Meteor.settings.driveowner ? 'zouchenuttall@gmail.com'
+CODEX_HUMAN_NAME = Meteor.settings.drivehumanname ? 'Zouche Nuttall'
 # FYI: password for CODEX_ACCOUNT is Meteor.settings.password
 WORKSHEET_NAME = (name) -> "Worksheet: #{name}"
 
@@ -95,7 +96,7 @@ samePerm = (p, pp) ->
   else if ('value' of p) and ('value' of pp)
     (p.value is pp.value)
   else # hack! google doesn't return the full email address in the permission
-    (p.type is 'user' and p.value is CODEX_ACCOUNT and pp.name is 'Zouche Nuttall')
+    (p.type is 'user' and p.value is CODEX_ACCOUNT and pp.name is CODEX_HUMAN_NAME)
 
 ensurePermissions = (id) ->
   # give permissions to both anyone with link and to the primary
