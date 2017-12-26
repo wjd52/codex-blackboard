@@ -56,7 +56,7 @@
     {{else}}{{#if timestamp}}
       <p align="center">Start of chat log.</p>
     {{/if}}{{/if}}{{/if}}
-    {{#each messages}}{{scrollHack}}
+    {{#each messages}}{{#if usefulEnough message}}{{scrollHack}}
       {{#if message.system}}
 <div class="bb-message-system">
    <div class="pull-right timestamp">{{pretty_ts message.timestamp}}</div>
@@ -81,7 +81,7 @@
     {{body}}
   </div>
 </div>
-      {{/if}}{{/if}}
+      {{/if}}{{/if}}{{/if}}
       {{#if isLastRead message.timestamp}}
 <div class="bb-message-last-read">read</div>
       {{/if}}
