@@ -116,17 +116,17 @@
 <template name="blackboard_status_grid">
   <div class="bb-status-grid">
     {{#each roundgroups}}
-    <div class="bb-status-grid-row bb-status-{{#unless solved}}un{{/unless}}solved">{{link id=_id}}</div>
+    <div class="bb-status-grid-row {{#if solved}}bb-status-solved{{else}}{{#if stuck this}}bb-status-stuck{{else}}bb-status-unsolved{{/if}}{{/if}}">{{link id=_id}}</div>
     {{#each rounds}}
     <div class="bb-status-grid-row">
       <div class="bb-status-grid-cell">
-        <div class="bb-status-{{#unless round.solved}}un{{/unless}}solved">
+        <div class="{{#if round.solved}}bb-status-solved{{else}}{{#if stuck round}}bb-status-stuck{{else}}bb-status-unsolved{{/if}}{{/if}}">
           {{link id=round._id title=round.name text=rX}}:
         </div>
       </div><!--
       -->{{#each puzzles}}<!--
       --><div class="bb-status-grid-cell">
-        <div class="bb-status-{{#unless puzzle.solved}}un{{/unless}}solved">
+        <div class="{{#if puzzle.solved}}bb-status-solved{{else}}{{#if stuck puzzle}}bb-status-stuck{{else}}bb-status-unsolved{{/if}}{{/if}}">
           {{link id=puzzle._id title=puzzle.name text=puzzle_num}}
         </div>
       </div><!--
@@ -213,22 +213,24 @@
       {{/if}}
       </td>
     {{#unless compactMode}}
-      <td class="puzzle-status bb-editable"
-        data-bbedit="tags/{{round._id}}/status/value">
-      {{#if editing "tags" round._id "status" "value"}}
-        <input type="text" id="tags-{{round._id}}-status-value"
-               value="{{tag "status"}}"
+      <td class="puzzle-status {{#unless round.solved}}bb-editable{{/unless}}"
+        data-bbedit="tags/{{round._id}}/stuck/value">
+      {{#if editing "tags" round._id "stuck" "value"}}
+        <input type="text" id="tags-{{round._id}}-stuck-value"
+               value="{{tag "stuck"}}"
                class="input-block-level" autofocus />
       {{else}}
+        {{#unless round.solved}}
         {{#if canEdit}}
           <i class="bb-edit-icon icon-pencil pull-right"
              title="Change the status of this round meta"></i>
-          {{#if tag "status"}}
+          {{#if tag "stuck"}}
             <i class="bb-delete-icon icon-remove pull-left"
                title="Delete the status message for this round meta"></i>
           {{/if}}
         {{/if}}
-        {{tag "status"}}
+        {{/unless}}
+        {{tag "stuck"}}
       {{/if}}
       </td>
     {{#unless canEdit}}
@@ -350,22 +352,24 @@
       {{/if}}
     </td>
     {{#unless compactMode}}
-    <td class="puzzle-status bb-editable"
-        data-bbedit="tags/{{puzzle._id}}/status/value">
-      {{#if editing "tags" puzzle._id "status" "value"}}
-        <input type="text" id="tags-{{puzzle._id}}-status-value"
-               value="{{tag "status"}}"
+    <td class="puzzle-status {{#unless puzzle.solved}}bb-editable{{/unless}}"
+        data-bbedit="tags/{{puzzle._id}}/stuck/value">
+      {{#if editing "tags" puzzle._id "stuck" "value"}}
+        <input type="text" id="tags-{{puzzle._id}}-stuck-value"
+               value="{{tag "stuck"}}"
                class="input-block-level" autofocus />
       {{else}}
+        {{#unless puzzle.solved}}
         {{#if canEdit}}
           <i class="bb-edit-icon icon-pencil pull-right"
              title="Change the status of this puzzle"></i>
-          {{#if tag "status"}}
+          {{#if tag "stuck"}}
             <i class="bb-delete-icon icon-remove pull-left"
                title="Delete the status message for this puzzle"></i>
           {{/if}}
         {{/if}}
-        {{tag "status"}}
+        {{/unless}}
+        {{tag "stuck"}}
       {{/if}}
     </td>
     {{#unless canEdit}}
