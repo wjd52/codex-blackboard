@@ -12,6 +12,7 @@
 #   hubot bot: <roundgroup> is a new round group
 #   hubot bot: Delete round group <roundgroup>
 #   hubot bot: New quip: <quip>
+#   hubot bot: announce <message>
 
 # helper function: concat regexes
 rejoin = (regs...) ->
@@ -317,4 +318,10 @@ share.hubot.codex = (robot) ->
       value: tag_value
       who: who
     msg.reply "The #{tag_name} for #{target.object.name} is now \"#{tag_value}\"."
+    msg.finish()
+
+  robot.commands.push 'bot announce <message>'
+  robot.respond /announce (.*)$/i, (msg) ->
+    share.model.oplog msg.match[1], "", "", msg.envelope.user.id, \
+        "announcements"
     msg.finish()
