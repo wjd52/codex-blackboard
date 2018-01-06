@@ -261,6 +261,8 @@ if Meteor.isServer
 #   system: boolean (true for system messages, false for user messages)
 #   action: boolean (true for /me commands)
 #   oplog:  boolean (true for semi-automatic operation log message)
+#   presence: optional string ('join'/'part' for presence-change only)
+#   bot_ignore: optional boolean (true for messages from e.g. email or twitter)
 #   to:   destination of pm (optional)
 #   room_name: "<type>/<id>", ie "puzzle/1", "round/1".
 #                             "general/0" for main chat.
@@ -468,8 +470,9 @@ if Meteor.isServer
       return if presence.room_name is 'oplog/0'
       Messages.insert
         system: true
-        nick: ''
+        nick: presence.nick
         to: null
+        presence: 'join'
         body: "#{name} joined the room."
         bodyIsHtml: false
         room_name: presence.room_name
@@ -483,8 +486,9 @@ if Meteor.isServer
       return if presence.room_name is 'oplog/0'
       Messages.insert
         system: true
-        nick: ''
+        nick: presence.nick
         to: null
+        presence: 'part'
         body: "#{name} left the room."
         bodyIsHtml: false
         room_name: presence.room_name
@@ -935,12 +939,28 @@ spread_id_to_link = (id) ->
         backsolve: !!args.backsolve
         provided: !!args.provided
       , {suppressLog:true}
-      Meteor.call 'newMessage',
-        body: "is requesting a call-in for #{args.answer.toUpperCase()}" + \
-          (if args.notifyGeneral then " (#{name})" else "") + provided + backsolve
+      body = (opts) ->
+        "is requesting a call-in for #{args.answer.toUpperCase()}" + \
+        (if opts?.specifyPuzzle then " (#{name})" else "") + provided + backsolve
+      msg =
         action: true
         nick: args.who
-        room_name: if args.notifyGeneral then null else "#{args.type}/#{id}"
+        body: body(specifyPuzzle: true)
+      unless args?.suppressRoom is "general/0"
+        Meteor.call 'newMessage', msg
+      # send to the puzzle chat
+      msg.body = body(specifyPuzzle: false)
+      msg.room_name = "#{args.type}/#{id}"
+      unless args?.suppressRoom is msg.room_name
+        Meteor.call 'newMessage', msg
+      # send to the round chat
+      if args.type is "puzzles"
+        round = Rounds.findOne({puzzles: id})
+        if round?
+          msg.body = body(specifyPuzzle: true)
+          msg.room_name = "rounds/#{round._id}"
+          unless args?.suppressRoom is msg.room_name
+            Meteor.call "newMessage", msg
       oplog "New answer #{args.answer} submitted for", args.type, id, \
           args.who, 'callins'
 
