@@ -322,7 +322,7 @@ share.hubot.codex = (robot) ->
     msg.finish()
 
 # Stuck
-  robot.commands.push 'bot stuck[ on <puzzle|round>][ because <reason>]'
+  robot.commands.push 'bot stuck[ on <puzzle|round>][ because <reason>] - summons help and marks puzzle as stuck on the blackboard'
   robot.respond (rejoin 'stuck(?: on ',thingRE,')?(?: because ',thingRE,')?',/$/i), (msg) ->
     if msg.match[1]?
       target = Meteor.call 'getByName', name: msg.match[1]
@@ -345,7 +345,7 @@ share.hubot.codex = (robot) ->
       msg.reply new share.Useful, "Help is on the way."
     msg.finish()
 
-  robot.commands.push 'but unstuck[ on <puzzle|round>]'
+  robot.commands.push 'but unstuck[ on <puzzle|round>] - marks puzzle no longer stuck on the blackboard'
   robot.respond (rejoin 'unstuck(?: on ',thingRE,')?',/$/i), (msg) ->
     if msg.match[1]?
       target = Meteor.call 'getByName', name: msg.match[1]
