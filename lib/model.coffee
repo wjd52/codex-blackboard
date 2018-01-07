@@ -532,6 +532,9 @@ oplog = (message, type="", id="", who="", stream="") ->
     to: null
     stream: stream
 
+isStuck = (object) ->
+  object? and /^stuck\b/i.test(getTag(object, 'Status') or '')
+
 # canonical names: lowercases, all non-alphanumerics replaced with '_'
 canonical = (s) ->
   s = s.toLowerCase().replace(/^\s+/, '').replace(/\s+$/, '') # lower, strip
@@ -1286,6 +1289,80 @@ spread_id_to_link = (id) ->
       args.now = UTCNow() # don't let caller lie about the time
       return deleteTagInternal args
 
+    summon: (args) ->
+      check args, ObjectWith
+        object: IdOrObject
+        type: ValidAnswerType
+        who: NonEmptyString
+        how: Match.Optional(NonEmptyString)
+      id = args.object._id or args.object
+      obj = collection(args.type).findOne id
+      if not obj?
+        return "Couldn't find #{pretty_collection args.type} #{id}"
+      if obj.solved
+        return "#{pretty_collection args.type} #{obj.name} is already answered"
+      wasStuck = isStuck obj
+      how = args.how or 'Stuck'
+      setTagInternal
+        object: id
+        type: args.type
+        name: 'Status'
+        value: how
+        who: args.who
+        now: UTCNow()
+      if wasStuck
+        return
+      oplog "Help requested for", args.type, id, args.who
+      body = "has requested help: #{how}"
+      Meteor.call 'newMessage',
+        nick: args.who
+        action: true
+        body: body
+        room_name: "#{args.type}/#{id}"
+      objUrl = # see Router.urlFor
+        Meteor._relativeToSiteRootUrl "/#{args.type}/#{id}"
+      body = "has requested help: #{UI._escape how} (#{pretty_collection args.type} <a class=\"#{UI._escape args.type}-link\" href=\"#{objUrl}\">#{UI._escape obj.name}</a>)"
+      Meteor.call 'newMessage',
+        nick: args.who
+        action: true
+        bodyIsHtml: true
+        body: body
+      return
+
+    unsummon: (args) ->
+      check args, ObjectWith
+        object: IdOrObject
+        type: ValidAnswerType
+        who: NonEmptyString
+      id = args.object._id or args.object
+      obj = collection(args.type).findOne id
+      if not obj?
+        return "Couldn't find #{pretty_collection args.type} #{id}"
+      if not (isStuck obj)
+        return "#{pretty_collection args.type} #{obj.name} isn't stuck"
+      oplog "Help request cancelled for", args.type, id, args.who
+      sticker = (tag.touched_by for tag in obj.tags when tag.canon is 'status')?[0] or 'nobody'
+      deleteTagInternal
+        object: id
+        type: args.type
+        name: 'status'
+        who: args.who
+        now: UTCNow()
+      body = "has arrived to help"
+      if canonical(args.who) is sticker
+        body = "no longer needs help getting unstuck"
+      Meteor.call 'newMessage',
+        nick: args.who
+        action: true
+        body: body
+        room_name: "#{args.type}/#{id}"
+      body = "#{body} in #{pretty_collection args.type} #{obj.name}"
+      Meteor.call 'newMessage',
+        nick: args.who
+        action: true
+        body: body
+      return
+
     addRoundToGroup: (args) ->
       check args, ObjectWith
         round: IdOrObject
@@ -1378,6 +1455,12 @@ spread_id_to_link = (id) ->
         object: args.target
         name: 'Answer'
         value: args.answer
+        who: args.who
+        now: now
+      deleteTagInternal
+        type: args.type
+        object: args.target
+        name: 'status'
         who: args.who
         now: now
       if args.backsolve
@@ -1506,6 +1589,7 @@ share.model =
   collection: collection
   pretty_collection: pretty_collection
   getTag: getTag
+  isStuck: isStuck
   canonical: canonical
   oplog: oplog
   drive_id_to_link: drive_id_to_link
