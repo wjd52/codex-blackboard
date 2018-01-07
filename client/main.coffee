@@ -101,6 +101,7 @@ setupNotifications = ->
         icon: gravatar[0].src
 
 do ->
+  return if not Notification
   return if Notification.permission is 'denied'
   return setupNotifications() if Notification.permission is 'granted'
   Notification.requestPermission (ok) ->
