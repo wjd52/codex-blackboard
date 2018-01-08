@@ -88,6 +88,23 @@
     }
     &.media:after { border-right-color: @bb-message-pm-color; }
   }
+  .bb-message-presence {
+    display: inline-block;
+    padding-right: 10px;
+    &:before {
+      .glyphicon;
+      content: " ";
+    }
+    &.join:before {
+      background-position: -408px -96px;
+    }
+    &.part:before {
+      background-position: -433px -96px;
+    }
+    & > img {
+      padding-right: 3px;
+    }
+  }
   .bb-message-system {
     color: #888;
     font-size: 12px;
@@ -174,7 +191,7 @@
   }
 }
 /* hide messages from bot if bot is muted */
-html.bb-nobot .bb-is-bot { display: none; }
+html.bb-nobot .bb-is-useless { display: none; }
 
 .messageRow, .actionRow {
   color: #666; /*font-size: 1.2em; margin: 4px 5px;*/

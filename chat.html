@@ -7,10 +7,10 @@
   <div class="bb-chat-callin {{#if solved}}solved{{/if}}">
     {{#if solved}}Solved
     {{else}}
-      {{> puzzle_callin_modal}}
-        {{#with puzzle}}
-          {{> puzzle_summon_button}}
-        {{/with}}
+      {{#with object}}
+        {{> puzzle_callin_modal}}
+        {{> puzzle_summon_modal}}
+      {{/with}}
     {{/if}}
   </div>
   {{/if}}
@@ -64,19 +64,23 @@
       <p align="center">Start of chat log.</p>
     {{/if}}{{/if}}{{/if}}
     {{#each messages}}{{scrollHack}}
-      {{#if message.system}}
+      {{#if message.presence}}
+<div class="bb-message-presence {{message.presence}}" title={{body}}>
+  {{gravatar id=email image="wavatar" size=14 }}{{message.nick}}
+</div>
+      {{else}}{{#if message.system}}
 <div class="bb-message-system">
    <div class="pull-right timestamp">{{pretty_ts message.timestamp}}</div>
      {{body}}
 </div>
       {{else}}{{#if message.action}}
-<div class="bb-message-action">
+<div class="bb-message-action{{#unless usefulEnough message}} bb-is-useless{{/unless}}">
    <div class="pull-right timestamp">{{pretty_ts message.timestamp}}</div>
      <i class="icon-hand-right"></i>
      <span title="{{message.nick}}{{nickLocation message.nick}}" class="{{#if nickNear message.nick}}near{{/if}}">{{nickOrName message.nick}}</span> {{body}}
 </div>
       {{else}}
-<div class="media{{#if message.to}} bb-message-pm{{/if}}{{#if followup}} bb-message-followup{{/if}}{{#if isBot}} bb-is-bot{{/if}}">
+<div class="media{{#if message.to}} bb-message-pm{{/if}}{{#if followup}} bb-message-followup{{/if}}{{#unless usefulEnough message}} bb-is-useless{{/unless}}">
   {{gravatar id=email image="wavatar" size=48 classes="media-object pull-left img-rounded" }}
   <div class="media-body bb-message-body">
     <div class="pull-right timestamp">{{pretty_ts message.timestamp}}</div>
@@ -88,7 +92,7 @@
     {{body}}
   </div>
 </div>
-      {{/if}}{{/if}}
+      {{/if}}{{/if}}{{/if}}
       {{#if isLastRead message.timestamp}}
 <div class="bb-message-last-read">read</div>
       {{/if}}

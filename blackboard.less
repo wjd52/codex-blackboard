@@ -78,6 +78,12 @@ body {
 .bb-chat-messages {
   margin-bottom: 26px; /* 41px navbar - 15px padding on #bb-body */
 }
+.bb-chat-callin, .bb-puzzleround {
+  .bb-summon-form {
+    .stuck-at, .stuck-need { width: auto; }
+    .label-stuck-other { display: block; }
+  }
+}
 
 #bb-body {
   padding-top: @navbar-height;
@@ -226,7 +232,7 @@ body {
       background:#AAFF99;
     }
     .bb-status-stuck {
-      background:#FF0;
+      background:#FFFF00;
     }
     .bb-status-unsolved {
       background:#FCFCFC;

@@ -261,6 +261,8 @@ if Meteor.isServer
 #   system: boolean (true for system messages, false for user messages)
 #   action: boolean (true for /me commands)
 #   oplog:  boolean (true for semi-automatic operation log message)
+#   presence: optional string ('join'/'part' for presence-change only)
+#   bot_ignore: optional boolean (true for messages from e.g. email or twitter)
 #   to:   destination of pm (optional)
 #   room_name: "<type>/<id>", ie "puzzle/1", "round/1".
 #                             "general/0" for main chat.
@@ -269,6 +271,10 @@ if Meteor.isServer
 #   followup: boolean (true if the previous message in the log is not
 #                      a system/action/oplog message and shares the same
 #                      `nick` and `to` values)
+#   useful: boolean (true for useful responses from bots; not set for "fun"
+#                    bot messages and commands that trigger them.)
+#   useless_cmd: boolean (true if this message triggered the bot to
+#                         make a not-useful response)
 #
 # Messages which are part of the operation log have `nick`, `message`,
 # and `timestamp` set to describe what was done, when, and by who.
@@ -283,7 +289,9 @@ computeMessageFollowup = (prev, curr) ->
    prev.action == curr.action and
    prev.oplog == curr.oplog and
    prev.nick == curr.nick and
-   prev.to == curr.to)
+   prev.to == curr.to and
+   # folks hiding useless bot cmds might not see the prev message
+   (not prev.useless_cmd))
 if Meteor.isServer
   for M in [ Messages, OldMessages ]
     M._ensureIndex {to:1, room_name:1, timestamp:-1}, {}
@@ -467,8 +475,9 @@ if Meteor.isServer
       return if presence.room_name is 'oplog/0'
       Messages.insert
         system: true
-        nick: ''
+        nick: presence.nick
         to: null
+        presence: 'join'
         body: "#{name} joined the room."
         bodyIsHtml: false
         room_name: presence.room_name
@@ -482,8 +491,9 @@ if Meteor.isServer
       return if presence.room_name is 'oplog/0'
       Messages.insert
         system: true
-        nick: ''
+        nick: presence.nick
         to: null
+        presence: 'part'
         body: "#{name} left the room."
         bodyIsHtml: false
         room_name: presence.room_name
@@ -511,6 +521,9 @@ pretty_collection = (type) ->
 
 getTag = (object, name) ->
   (tag.value for tag in (object?.tags or []) when tag.canon is canonical(name))[0]
+
+isStuck = (object) ->
+  object? and /^stuck\b/i.test(getTag(object, 'Status') or '')
 
 # canonical names: lowercases, all non-alphanumerics replaced with '_'
 canonical = (s) ->
@@ -932,12 +945,29 @@ spread_id_to_link = (id) ->
         backsolve: !!args.backsolve
         provided: !!args.provided
       , {suppressLog:true}
-      Meteor.call 'newMessage',
-        body: "is requesting a call-in for #{args.answer.toUpperCase()}" + \
-          (if args.notifyGeneral then " (#{name})" else "") + provided + backsolve
+      body = (opts) ->
+        "is requesting a call-in for #{args.answer.toUpperCase()}" + \
+        (if opts?.specifyPuzzle then " (#{name})" else "") + provided + backsolve
+      msg =
         action: true
         nick: args.who
-        room_name: if args.notifyGeneral then null else "#{args.type}/#{id}"
+      # send to the general chat
+      msg.body = body(specifyPuzzle: true)
+      unless args?.suppressRoom is "general/0"
+        Meteor.call 'newMessage', msg
+      # send to the puzzle chat
+      msg.body = body(specifyPuzzle: false)
+      msg.room_name = "#{args.type}/#{id}"
+      unless args?.suppressRoom is msg.room_name
+        Meteor.call 'newMessage', msg
+      # send to the round chat
+      if args.type is "puzzles"
+        round = Rounds.findOne({puzzles: id})
+        if round?
+          msg.body = body(specifyPuzzle: true)
+          msg.room_name = "rounds/#{round._id}"
+          unless args?.suppressRoom is msg.room_name
+            Meteor.call "newMessage", msg
       oplog "New answer #{args.answer} submitted for", args.type, id, args.who
 
     newQuip: (args) ->
@@ -1098,6 +1128,8 @@ spread_id_to_link = (id) ->
         to: canonical(args.to or "") or null
         room_name: args.room_name or "general/0"
         timestamp: UTCNow()
+        useful: args.useful or false
+        useless_cmd: args.useless_cmd or false
       # update the user's 'last read' message to include this one
       # (doing it here allows us to use server timestamp on message)
       unless (args.suppressLastRead or newMsg.system or (not newMsg.nick))
@@ -1277,32 +1309,34 @@ spread_id_to_link = (id) ->
         object: IdOrObject
         type: ValidAnswerType
         who: NonEmptyString
+        how: Match.Optional(NonEmptyString)
       id = args.object._id or args.object
-      puzz = collection(args.type).findOne id
-      if not puzz?
-        return "Couldn't find #{id} in #{args.type}"
-      if getTag(puzz, 'answer')?
-        return "#{puzz.name} is already answered"
-      oldStuck = getTag(puzz, 'stuck')
+      obj = collection(args.type).findOne id
+      if not obj?
+        return "Couldn't find #{pretty_collection args.type} #{id}"
+      if obj.solved
+        return "#{pretty_collection args.type} #{obj.name} is already answered"
+      wasStuck = isStuck obj
+      how = args.how or 'Stuck'
       setTagInternal
         object: id
         type: args.type
-        name: 'stuck'
-        value: args.value or 'stuck'
+        name: 'Status'
+        value: how
         who: args.who
         now: UTCNow()
-      if oldStuck?
+      if wasStuck
         return
-      body = "has requested help getting unstuck"
-      if args.value?
-        body = "#{body} (#{UI._escape args.value})"
+      oplog "Help requested for", args.type, id, args.who
+      body = "has requested help: #{how}"
       Meteor.call 'newMessage',
         nick: args.who
         action: true
-        bodyIsHtml: true
         body: body
         room_name: "#{args.type}/#{id}"
-      body = "#{body} in <a target=_blank href=\"/#{args.type}/#{id}\">#{UI._escape puzz.name}</a>"
+      objUrl = # see Router.urlFor
+        Meteor._relativeToSiteRootUrl "/#{args.type}/#{id}"
+      body = "has requested help: #{UI._escape how} (#{pretty_collection args.type} <a class=\"#{UI._escape args.type}-link\" href=\"#{objUrl}\">#{UI._escape obj.name}</a>)"
       Meteor.call 'newMessage',
         nick: args.who
         action: true
@@ -1316,30 +1350,31 @@ spread_id_to_link = (id) ->
         type: ValidAnswerType
         who: NonEmptyString
       id = args.object._id or args.object
-      puzz = collection(args.type).findOne id
-      if not puzz?
-        return "Couldn't find #{id} in #{args.type}"
-      sticker = (tag.touched_by for tag in puzz.tags when tag.canon is 'stuck')[0]
-      if not sticker?
-        return "#{puzz.name} isn't stuck"
+      obj = collection(args.type).findOne id
+      if not obj?
+        return "Couldn't find #{pretty_collection args.type} #{id}"
+      if not (isStuck obj)
+        return "#{pretty_collection args.type} #{obj.name} isn't stuck"
+      oplog "Help request cancelled for", args.type, id, args.who
+      sticker = (tag.touched_by for tag in obj.tags when tag.canon is 'status')?[0] or 'nobody'
       deleteTagInternal
         object: id
         type: args.type
-        name: 'stuck'
+        name: 'status'
         who: args.who
         now: UTCNow()
       body = "has arrived to help"
       if canonical(args.who) is sticker
         body = "no longer needs help getting unstuck"
       Meteor.call 'newMessage',
-        nick: args.who,
-        action: true,
-        body: body, 
+        nick: args.who
+        action: true
+        body: body
         room_name: "#{args.type}/#{id}"
-      body = "#{body} in #{puzz.name}"
+      body = "#{body} in #{pretty_collection args.type} #{obj.name}"
       Meteor.call 'newMessage',
-        nick: args.who,
-        action: true,
+        nick: args.who
+        action: true
         body: body
       return
 
@@ -1440,7 +1475,7 @@ spread_id_to_link = (id) ->
       deleteTagInternal
         type: args.type
         object: args.target
-        name: 'stuck'
+        name: 'status'
         who: args.who
         now: now
       if args.backsolve
@@ -1568,6 +1603,7 @@ share.model =
   collection: collection
   pretty_collection: pretty_collection
   getTag: getTag
+  isStuck: isStuck
   canonical: canonical
   drive_id_to_link: drive_id_to_link
   spread_id_to_link: spread_id_to_link
