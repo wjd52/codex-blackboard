@@ -1320,7 +1320,7 @@ spread_id_to_link = (id) ->
         now: UTCNow()
       if wasStuck
         return
-      oplog "Help requested for", args.type, id, args.who
+      oplog "Help requested for", args.type, id, args.who, 'stuck'
       body = "has requested help: #{how}"
       Meteor.call 'newMessage',
         nick: args.who

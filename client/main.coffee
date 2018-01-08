@@ -76,6 +76,7 @@ notificationDefaults =
   answers: true
   announcements: true
   newpuzzles: true
+  stuck: false
 
 setupNotifications = ->
   for stream, def of notificationDefaults

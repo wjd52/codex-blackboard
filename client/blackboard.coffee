@@ -66,6 +66,7 @@ notificationStreams = [
   {name: 'announcements', label: 'Announcements'}
   {name: 'callins', label: "Call-Ins"}
   {name: 'answers', label: "Answers"}
+  {name: 'stuck', label: 'Stuck Puzzles'}
 ]
 Template.blackboard.helpers
   notificationStreams: notificationStreams
