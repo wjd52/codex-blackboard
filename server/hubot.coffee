@@ -43,16 +43,29 @@ sendHelper = Meteor.bindEnvironment (robot, envelope, strings, map) ->
       room_name: envelope.room
       present: true
       foreground: true
+  props = Object.create(null)
+  lines = []
   while strings.length > 0
+    if typeof(strings[0]) is 'function'
+      strings[0] = strings[0]()
+      continue
     string = strings.shift()
-    if typeof(string) == 'function'
-      string()
-    else
-      try
-        map(string)
-      catch err
-        console.error "Hubot error: #{err}" if DEBUG
-        robot.logger.error "Blackboard send error: #{err}"
+    if typeof(string) is 'object'
+      Object.assign props, string
+      continue
+    if string?
+      lines.push string
+  if lines.length and envelope.message.direct and (not props.useful)
+    model.Messages.update envelope.message.id, $set: useless_cmd: true
+  lines.map (line) ->
+    try
+      map(line, props)
+    catch err
+      console.error "Hubot error: #{err}" if DEBUG
+      robot.logger.error "Blackboard send error: #{err}"
+
+tweakStrings = (strings, f) -> strings.map (obj) ->
+  if typeof(obj) == 'string' then f(obj) else obj
 
 class BlackboardAdapter extends Hubot.Adapter
   # Public: Raw method for sending data back to the chat source. Extend this.
@@ -62,13 +75,14 @@ class BlackboardAdapter extends Hubot.Adapter
   #
   # Returns nothing.
   send: (envelope, strings...) ->
-    sendHelper @robot, envelope, strings, (string) =>
+    return @priv envelope, strings... if envelope.message.private
+    sendHelper @robot, envelope, strings, (string, props) ->
       console.log "send #{envelope.room}: #{string} (#{envelope.user.id})" if DEBUG
-      return @priv envelope, string if envelope.message.private
-      Meteor.call "newMessage",
+      Meteor.call "newMessage", Object.assign {}, props,
         nick: "codexbot"
         body: string
         room_name: envelope.room
+        bot_ignore: true
 
   # Public: Raw method for sending emote data back to the chat source.
   #
@@ -77,24 +91,27 @@ class BlackboardAdapter extends Hubot.Adapter
   #
   # Returns nothing.
   emote: (envelope, strings...) ->
-    sendHelper @robot, envelope, strings, (string) =>
+    if envelope.message.private
+        return @priv envelope, tweakStrings(strings, (s) -> "*** #{s} ***")...
+    sendHelper @robot, envelope, strings, (string, props) ->
       console.log "emote #{envelope.room}: #{string} (#{envelope.user.id})" if DEBUG
-      return @priv envelope, "*** #{string} ***" if envelope.message.private
-      Meteor.call "newMessage",
+      Meteor.call "newMessage", Object.assign {}, props,
         nick: "codexbot"
         body: string
         room_name: envelope.room
         action: true
+        bot_ignore: true
 
   # Priv: our extension -- send a PM to user
   priv: (envelope, strings...) ->
-    sendHelper @robot, envelope, strings, (string) ->
+    sendHelper @robot, envelope, strings, (string, props) ->
       console.log "priv #{envelope.room}: #{string} (#{envelope.user.id})" if DEBUG
-      Meteor.call "newMessage",
+      Meteor.call "newMessage", Object.assign {}, props,
         nick: "codexbot"
         to: "#{envelope.user.id}"
         body: string
         room_name: envelope.room
+        bot_ignore: true
 
   # Public: Raw method for building a reply and sending it back to the chat
   # source. Extend this.
@@ -107,7 +124,7 @@ class BlackboardAdapter extends Hubot.Adapter
     if envelope.message.private
       @priv envelope, strings...
     else
-      @send envelope, strings.map((str) -> "#{envelope.user.id}: #{str}")...
+      @send envelope, tweakStrings(strings, (str) -> "#{envelope.user.id}: #{str}")...
 
   # Public: Raw method for setting a topic on the chat source. Extend this.
   #
@@ -135,6 +152,9 @@ class BlackboardAdapter extends Hubot.Adapter
   # Returns nothing.
   close: ->
 
+IGNORED_NICKS =
+  'codexbot': true
+  '': true
 Meteor.startup ->
   robot = new Robot null, null, false, Meteor.settings?.botname ? 'codexbot'
   robot.alias = 'bot'
@@ -163,7 +183,8 @@ Meteor.startup ->
   model.Messages.find({}).observeChanges
     added: (id, msg) ->
       return if startup
-      return if msg.nick is "codexbot" or msg.nick is ""
+      return if msg.bot_ignore
+      return if IGNORED_NICKS[msg.nick]?
       return if msg.system or msg.action or msg.oplog or msg.bodyIsHtml
       console.log "Received from #{msg.nick} in #{msg.room_name}: #{msg.body}"\
         if DEBUG
@@ -173,6 +194,7 @@ Meteor.startup ->
       # if private, ensure it's treated as a direct address
       if tm.private and not mynameRE.test(tm.text)
         tm.text = "#{robot.name} #{tm.text}"
+      tm.direct = mynameRE.test(tm.text)
       adapter.receive tm
   startup = false
   Meteor.call "newMessage",
@@ -180,3 +202,4 @@ Meteor.startup ->
     body: 'wakes up'
     room_name: 'general/0'
     action: true
+    bot_ignore: true

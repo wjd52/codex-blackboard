@@ -101,6 +101,10 @@ Template.chat.helpers
     type = Session.get 'type'
     type is 'general' or \
       (model.collection(type)?.findOne Session.get("id"))?
+  object: ->
+    type = Session.get 'type'
+    type isnt 'general' and \
+      (model.collection(type)?.findOne Session.get("id"))
   solved: ->
     type = Session.get 'type'
     type isnt 'general' and \
@@ -113,6 +117,10 @@ Template.messages.helpers
   ready: -> Session.equals('chatReady', true) and \
             Template.instance().subscriptionsReady()
   isLastRead: (ts) -> Session.equals('lastread', +ts)
+  usefulEnough: (m) ->
+    m.nick is Session.get('nick') or m.to is Session.get('nick') or \
+        m.useful or (m.nick isnt 'codexbot' and not m.useless_cmd) or \
+        doesMentionNick(m)
   prevTimestamp: ->
     p = pageForTimestamp Session.get('room_name'), +Session.get('timestamp')
     return unless p?.from
@@ -132,8 +140,6 @@ Template.messages.helpers
       transform: (m) ->
         _id: m._id
         message: m
-        isBot: m.nick is 'codexbot' and m.to is null
-
   email: ->
     cn = model.canonical(this.message.nick)
     n = model.Nicks.findOne canon: cn
