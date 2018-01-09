@@ -17,6 +17,8 @@ settings.WIKI_HOST = server.wikiHost ? 'https://wiki.codexian.us'
 # hunt year, used to make wiki links
 settings.HUNT_YEAR = server.huntYear ? 2014
 
+settings.TEAM_NAME = server.teamName ? 'Codex'
+
 # -- Performance settings --
 
 # make fewer people subscribe to ringhunters chat.

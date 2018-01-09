@@ -182,7 +182,7 @@ Template.blackboard.onRendered ->
   ss.activate(ss.targets[0]) if ss.targets.length
   ss.process()
   #  page title
-  $("title").text("Codex Puzzle Blackboard")
+  $("title").text("#{settings.TEAM_NAME} Puzzle Blackboard")
   # affix side menu
   # XXX disabled because it doesn't play nice with narrow screens
   #$("#bb-sidebar > .bb-sidenav").affix()

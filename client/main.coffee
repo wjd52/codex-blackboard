@@ -45,6 +45,8 @@ Template.registerHelper 'linkify', (contents) ->
 Template.registerHelper 'compactHeader', () ->
   (Session.equals 'currentPage', 'chat')
 
+Template.registerHelper 'teamName', -> settings.TEAM_NAME
+
 # subscribe to the all-names feed all the time
 Meteor.subscribe 'all-names'
 # subscribe to all nicks all the time
