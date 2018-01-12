@@ -191,6 +191,9 @@ Template.blackboard.onRendered ->
   $('#bb-tables .bb-puzzle .puzzle-name > a').tooltip placement: 'left'
   # see the global 'updateScrollSpy' helper for details on how
   # we update scrollspy when the rounds list changes
+  if Session.get 'canEdit'
+   share.ensureNick()
+
 doBoolean = (name, newVal) ->
   Session.set name, newVal
   $.cookie name, (newVal or ''),  {expires: 365, path: '/'}
