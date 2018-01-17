@@ -24,6 +24,22 @@ Meteor.startup ->
       console.log 'that was easy', doc, oldDoc
       unless Session.get 'mute'
         blackboard.newAnswerSound?.play?()
+  # see if we've got native emoji support, and add the 'has-emojis' class
+  # if so; inspired by
+  # https://stackoverflow.com/questions/27688046/css-reference-to-phones-emoji-font
+  checkEmoji = (char, x, y, fillStyle='#000') ->
+    node = document.createElement('canvas')
+    ctx = node.getContext('2d')
+    ctx.fillStyle = fillStyle
+    ctx.textBaseline = 'top'
+    ctx.font = '32px Arial'
+    ctx.fillText(char, 0, 0)
+    return ctx.getImageData(x, y, 1, 1)
+  reddot = checkEmoji '\uD83D\uDD34', 16, 16
+  dancing = checkEmoji '\uD83D\uDD7A', 12, 16 # unicode 9.0
+  if reddot[0] > reddot[1] and dancing[0] > 0
+    console.log 'has unicode 9 color emojis'
+    document.body.classList.add 'has-emojis'
 
 # Returns an event map that handles the "escape" and "return" keys and
 # "blur" events on a text input (given by selector) and interprets them
@@ -62,6 +78,47 @@ Template.blackboard.helpers
   hideStatus: -> Session.get 'hideStatus'
   compactMode: compactMode
   nCols: nCols
+
+# Notifications
+notificationStreams = [
+  {name: 'new-puzzles', label: 'New Puzzles'}
+  {name: 'announcements', label: 'Announcements'}
+  {name: 'callins', label: "Call-Ins"}
+  {name: 'answers', label: "Answers"}
+  {name: 'stuck', label: 'Stuck Puzzles'}
+]
+
+notificationStreamsEnabled = ->
+  item.name for item in notificationStreams \
+    when share.notification?.get?(item.name)
+
+Template.blackboard.helpers
+  notificationStreams: notificationStreams
+  notificationsAsk: ->
+    p = Session.get 'notifications'
+    p isnt 'granted' and p isnt 'denied'
+  notificationsEnabled: -> Session.equals 'notifications', 'granted'
+  anyNotificationsEnabled: -> (share.notification.count() > 0)
+  notificationStreamEnabled: (stream) -> share.notification.get stream
+Template.blackboard.events
+  "click .bb-notification-ask": (event, template) ->
+    share.notification.ask()
+  "click .bb-notification-enabled": (event, template) ->
+    if share.notification.count() > 0
+      for item in notificationStreams
+        share.notification.set(item.name, false)
+    else
+      for item in notificationStreams
+        share.notification.set(item.name) # default value
+  "click .bb-notification-controls.dropdown-menu a": (event, template) ->
+    $inp = $( event.currentTarget ).find( 'input' )
+    stream = $inp.attr('data-notification-stream')
+    share.notification.set(stream, !share.notification.get(stream))
+    $( event.target ).blur()
+    return false
+  "change .bb-notification-controls [data-notification-stream]": (event, template) ->
+    share.notification.set event.target.dataset.notificationStream, event.target.checked
+
 ############## groups, rounds, and puzzles ####################
 Template.blackboard.helpers
   roundgroups: ->
@@ -80,6 +137,7 @@ Template.blackboard.helpers
     } for id, index in this.rounds)
     r.reverse() if Session.get 'sortReverse'
     return r
+  stuck: share.model.isStuck
 
 Template.blackboard_status_grid.helpers
   roundgroups: ->
@@ -104,7 +162,7 @@ Template.blackboard_status_grid.helpers
       pY: "p#{1+index}"
     } for id, index in this.round?.puzzles)
     return p
-  stuck: (x) -> share.model.isStuck x
+  stuck: share.model.isStuck
 
 Template.nick_presence.helpers
   email: ->
@@ -300,6 +358,7 @@ Template.blackboard_round.helpers
     count
   compactMode: compactMode
   nCols: nCols
+  stuck: share.model.isStuck 
 
 Template.blackboard_puzzle.helpers
   tag: (name) ->
@@ -315,6 +374,7 @@ Template.blackboard_puzzle.helpers
     count
   compactMode: compactMode
   nCols: nCols
+  stuck: share.model.isStuck
 
 tagHelper = (id) ->
   isRoundGroup = ('rounds' of this)

@@ -21,6 +21,8 @@ MOVE_OLD_PAGES = true
 # Server-side, client-side, or no follow-up processing
 followupStyle = -> Meteor.settings?.public?.followupStyle ? 'client'
 
+emojify = (s) -> share.emojify?(s) or s
+
 # helper function: like _.throttle, but always ensures `wait` of idle time
 # between invocations.  This ensures that we stay chill even if a single
 # execution of the function starts to exceed `wait`.
@@ -284,9 +286,10 @@ if Meteor.isServer
 # Messages which are part of the operation log have `nick`, `message`,
 # and `timestamp` set to describe what was done, when, and by who.
 # They have `system=false`, `action=true`, `oplog=true`, `to=null`,
-# and `room_name="oplog/0"`.  They also have two additional fields,
+# and `room_name="oplog/0"`.  They also have three additional fields:
 # `type` and `id`, which give a mongodb reference to the object
-# modified so we can hyperlink to it.
+# modified so we can hyperlink to it, and `stream`, which maps to the
+# JS Notification API "tag" for deduping and selective muting.
 Messages = BBCollection.messages = new Mongo.Collection "messages"
 OldMessages = BBCollection.oldmessages = new Mongo.Collection "oldmessages"
 computeMessageFollowup = (prev, curr) ->
@@ -592,7 +595,7 @@ spread_id_to_link = (id) ->
         check o[k], pattern[k]
       true
 
-  oplog = (message, type="", id="", who="") ->
+  oplog = (message, type="", id="", who="", stream="") ->
     Messages.insert
       room_name: 'oplog/0'
       nick: canonical(who)
@@ -602,10 +605,11 @@ spread_id_to_link = (id) ->
       type:type
       id:id
       oplog: true
+      followup: true
       action: true
       system: false
-      followup: true
       to: null
+      stream: stream
 
   newObject = (type, args, extra, options={}) ->
     check args, ObjectWith
@@ -630,7 +634,9 @@ spread_id_to_link = (id) ->
         return collection(type).findOne({canon:canonical(args.name)})
       throw error # something went wrong, who knows what, pass it on
     unless options.suppressLog
-      oplog "Added", type, object._id, args.who
+      oplog "Added", type, object._id, args.who, \
+          if type in ['puzzles', 'rounds', 'roundgroups'] \
+              then 'new-puzzles' else ''
     return object
 
   renameObject = (type, args, options={}) ->
@@ -973,7 +979,8 @@ spread_id_to_link = (id) ->
           msg.room_name = "rounds/#{round._id}"
           unless args?.suppressRoom is msg.room_name
             Meteor.call "newMessage", msg
-      oplog "New answer #{args.answer} submitted for", args.type, id, args.who
+      oplog "New answer #{args.answer} submitted for", args.type, id, \
+          args.who, 'callins'
 
     newQuip: (args) ->
       check args, ObjectWith
@@ -1083,7 +1090,8 @@ spread_id_to_link = (id) ->
       callin = CallIns.findOne(args.id)
       throw new Meteor.Error(400, "bad callin") unless callin
       unless args.suppressLog
-        oplog "Canceled call-in of #{callin.answer} for", callin.type, callin.target, args.who
+        oplog "Canceled call-in of #{callin.answer} for", callin.type, \
+            callin.target, args.who
       deleteObject "callins",
         id: args.id
         who: args.who
@@ -1135,9 +1143,15 @@ spread_id_to_link = (id) ->
         timestamp: UTCNow()
         useful: args.useful or false
         useless_cmd: args.useless_cmd or false
+      if args.oplog
+        newMsg.oplog = newMsg.action = newMsg.followup = true
+        newMsg.room_name = 'oplog/0'
+        newMsg.stream = args.stream or ''
+      # translate emojis!
+      newMsg.body = emojify newMsg.body unless newMsg.bodyIsHtml
       # update the user's 'last read' message to include this one
       # (doing it here allows us to use server timestamp on message)
-      unless (args.suppressLastRead or newMsg.system or (not newMsg.nick))
+      unless (args.suppressLastRead or newMsg.system or newMsg.oplog or (not newMsg.nick))
         Meteor.call 'updateLastRead',
           nick: newMsg.nick
           room_name: newMsg.room_name
@@ -1322,7 +1336,7 @@ spread_id_to_link = (id) ->
         now: UTCNow()
       if wasStuck
         return
-      oplog "Help requested for", args.type, id, args.who
+      oplog "Help requested for", args.type, id, args.who, 'stuck'
       body = "has requested help: #{how}"
       Meteor.call 'newMessage',
         nick: args.who
@@ -1494,7 +1508,7 @@ spread_id_to_link = (id) ->
         solved_by: canonical(args.who)
         touched: now
         touched_by: canonical(args.who)
-      oplog "Found an answer to", args.type, id, args.who
+      oplog "Found an answer (#{args.answer.toUpperCase()}) to", args.type, id, args.who, 'answers'
       # cancel any entries on the call-in queue for this puzzle
       for c in CallIns.find(type: args.type, target: id).fetch()
         Meteor.call 'cancelCallIn',
@@ -1524,7 +1538,8 @@ spread_id_to_link = (id) ->
           backsolve: !!args.backsolve
           provided: !!args.provided
 
-      oplog "Incorrect answer #{args.answer} for", args.type, id, args.who
+      oplog "reports incorrect answer #{args.answer} for", args.type, id, args.who, \
+          'callins'
       # cancel any matching entries on the call-in queue for this puzzle
       for c in CallIns.find(type: args.type, target: id, answer: args.answer).fetch()
         Meteor.call 'cancelCallIn',
@@ -1570,6 +1585,16 @@ spread_id_to_link = (id) ->
       return unless Meteor.isServer
       # Return special folder used for uploads to general Ringhunters chat
       return share.drive.ringhuntersFolder
+
+    # if a round/puzzle folder gets accidentally deleted, this can be used to
+    # manually re-create it.
+    fixPuzzleFolder: (args) ->
+      check args, ObjectWith
+        type: ValidType
+        object: IdOrObject
+        name: NonEmptyString
+      id = args.object._id or args.object
+      newDriveFolder args.type, id, args.name
 )()
 
 UTCNow = -> Date.now()

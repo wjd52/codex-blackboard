@@ -100,7 +100,7 @@ favicon = badge: (-> false), reset: (-> false)
 Meteor.startup ->
   favicon = share.chat.favicon = new Favico
     animation: 'slide'
-    fontFamily: 'Droid Sans'
+    fontFamily: 'Noto Sans'
     fontStyle: '700'
 
 Template.chat.helpers
@@ -116,6 +116,11 @@ Template.chat.helpers
     type = Session.get 'type'
     type isnt 'general' and \
       (model.collection(type)?.findOne Session.get("id"))?.solved
+
+nickEmail = (nick) ->
+  cn = model.canonical(nick)
+  n = model.Nicks.findOne canon: cn
+  return model.getTag(n, 'Gravatar') or "#{cn}@#{settings.DEFAULT_HOST}"
 
 # Template Binding
 Template.messages.helpers
@@ -154,10 +159,7 @@ Template.messages.helpers
         followup: (serverFollowup and m.followup) or false
         message: m
 
-  email: ->
-    cn = model.canonical(this.message.nick)
-    n = model.Nicks.findOne canon: cn
-    return model.getTag(n, 'Gravatar') or "#{cn}@#{settings.DEFAULT_HOST}"
+  email: -> nickEmail this.message.nick
   body: ->
     body = this.message.body or ''
     unless this.message.bodyIsHtml
@@ -465,6 +467,9 @@ Template.messages_input.submit = (message) ->
       while rest
         n = model.Nicks.findOne canon: model.canonical(to)
         break if n
+        if to is 'bot' # allow 'bot' as a shorthand for 'codexbot'
+          to = 'codexbot'
+          continue
         [extra, rest] = rest.split(/\s+([^]*)/, 2)
         to += ' ' + extra
       if n
@@ -494,23 +499,28 @@ Template.messages_input.events
       $message = $ event.currentTarget
       message = $message.val()
       if message
+        re = new RegExp "^#{regex_escape message}", "i"
         for present in whos_here_helper().fetch()
           n = model.Nicks.findOne(canon: present.nick)
           realname = if n then model.getTag(n, 'Real Name')
-          re = new RegExp "^#{message}", "i"
           if re.test present.nick
-            $message.val "#{present.nick}: "
+            return $message.val "#{present.nick}: "
           else if realname and re.test realname
-            $message.val "#{realname}: "
+            return $message.val "#{realname}: "
           else if re.test "@#{present.nick}"
-            $message.val "@#{present.nick} "
+            return $message.val "@#{present.nick} "
           else if realname and re.test "@#{realname}"
-            $message.val "@#{realname} "
+            return $message.val "@#{realname} "
           else if re.test("/m #{present.nick}") or \
                   re.test("/msg #{present.nick}") or \
                   realname and (re.test("/m #{realname}") or \
                                 re.test("/msg #{realname}"))
-            $message.val "/msg #{present.nick} "
+            return $message.val "/msg #{present.nick} "
+        if re.test('bot')
+          return $message.val 'codexbot '
+        if re.test('/m bot') or re.test('/msg bot')
+          return $message.val '/msg codexbot '
+
     # implicit submit on enter (but not shift-enter or ctrl-enter)
     return unless event.which is 13 and not (event.shiftKey or event.ctrlKey)
     event.preventDefault() # prevent insertion of enter
@@ -673,6 +683,7 @@ share.chat =
   cleanupChat: cleanupChat
   hideMessageAlert: hideMessageAlert
   joinRoom: joinRoom
+  nickEmail: nickEmail
   # pagination helpers
   pageForTimestamp: pageForTimestamp
   messagesForPage: messagesForPage
