@@ -191,6 +191,12 @@ Template.blackboard.onRendered ->
   $('#bb-tables .bb-puzzle .puzzle-name > a').tooltip placement: 'left'
   # see the global 'updateScrollSpy' helper for details on how
   # we update scrollspy when the rounds list changes
+  @autorun () ->
+    editing = Session.get 'editing'
+    return unless editing?
+    Meteor.defer () ->
+      $("##{editing.split('/').join '-'}").focus()
+
 doBoolean = (name, newVal) ->
   Session.set name, newVal
   $.cookie name, (newVal or ''),  {expires: 365, path: '/'}
