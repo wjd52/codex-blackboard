@@ -41,7 +41,6 @@ Template.callins.helpers
 
 Template.callins.onRendered ->
   $("title").text("Answer queue")
-  share.ensureNick()
 
 Template.callins.events
   "click .bb-addquip-btn": (event, template) ->
@@ -49,23 +48,22 @@ Template.callins.events
   "click .bb-quip-next": (event, template) ->
     Meteor.call 'useQuip',
       id: template.get_quip_id(event)
-      who: Session.get('nick')
+      who: reactiveLocalStorage.getItem 'nick'
   "click .bb-quip-punt": (event, template) ->
     Meteor.call 'useQuip',
       id: template.get_quip_id(event)
-      who: Session.get('nick')
+      who: reactiveLocalStorage.getItem 'nick'
       punted: true
   "click .bb-quip-remove": (event, template) ->
     Meteor.call 'removeQuip',
       id: template.get_quip_id(event)
-      who: Session.get('nick')
+      who: reactiveLocalStorage.getItem 'nick'
 
 Template.callin_row.onCreated ->
   this.get_callin_id = (event) ->
     $(event.currentTarget).closest('*[data-bbedit]').attr('data-bbedit')
 
 Template.callin_row.helpers
-  sessionNick: -> Session.get 'nick'
   lastAttempt: (type, target) ->
     p = if target then model.collection(type).findOne(target)
     return null unless p? and p.incorrectAnswers?.length > 0
@@ -80,17 +78,17 @@ Template.callin_row.events
   "click .bb-callin-correct": (event, template) ->
      Meteor.call 'correctCallIn',
        id: template.get_callin_id(event)
-       who: Session.get('nick')
+       who: reactiveLocalStorage.getItem 'nick'
 
   "click .bb-callin-incorrect": (event, template) ->
      Meteor.call 'incorrectCallIn',
        id: template.get_callin_id(event)
-       who: Session.get('nick')
+       who: reactiveLocalStorage.getItem 'nick'
 
   "click .bb-callin-cancel": (event, template) ->
      Meteor.call 'cancelCallIn',
        id: template.get_callin_id(event)
-       who: Session.get('nick')
+       who: reactiveLocalStorage.getItem 'nick'
 
   "change .bb-submitted-to-hq": (event, template) ->
      checked = !!event.currentTarget.checked
@@ -98,4 +96,4 @@ Template.callin_row.events
        type: 'callins'
        object: template.get_callin_id(event)
        fields: submitted_to_hq: checked
-       who: Session.get('nick')
+       who: reactiveLocalStorage.getItem 'nick'

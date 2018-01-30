@@ -83,7 +83,7 @@ Template.puzzle_summon_modal.events
         no_button: 'Nevermind, this is still STUCK'
         ok: ->
           Meteor.call 'unsummon',
-            who: Session.get 'nick'
+            who: reactiveLocalStorage.getItem 'nick'
             type: Session.get 'type'
             object: Session.get 'id'
   "click .bb-summon-btn.unstuck": (event, template) ->
@@ -104,7 +104,7 @@ Template.puzzle_summon_modal.events
     if other isnt ''
         how += ": #{other}"
     Meteor.call 'summon',
-      who: Session.get 'nick'
+      who: reactiveLocalStorage.getItem 'nick'
       type: Session.get 'type'
       object: Session.get 'id'
       how: how
@@ -132,7 +132,7 @@ Template.puzzle_callin_modal.events
       answer = '"' + answer.replace(/\"/g,'\\"') + '"'
     Meteor.call "newMessage",
       body: "bot: call in #{backsolve}#{answer.toUpperCase()}"
-      nick: Session.get 'nick'
+      nick: reactiveLocalStorage.getItem 'nick'
       room_name: "#{Session.get 'type'}/#{Session.get 'id'}"
     template.$('.modal').modal 'hide'
 

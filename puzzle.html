@@ -155,7 +155,11 @@ Open spreadsheet in new window</a>
   </div>
   <div class="modal-footer">
     <button class="btn" data-dismiss="modal">Cancel</button>
-    <button class="btn btn-primary bb-summon-submit">Send in the call for help!</button>
+    {{#if nick}}
+      <button class="btn btn-primary bb-summon-submit">Send in the call for help!</button>
+    {{else}}
+      <button class="btn btn-primary" disabled>Must be logged in</button>
+    {{/if}}
   </div>
 </div>
 </template>
@@ -183,7 +187,11 @@ Open spreadsheet in new window</a>
   </div>
   <div class="modal-footer">
     <button class="btn" data-dismiss="modal">Cancel</button>
-    <button class="btn btn-primary bb-callin-submit">Request Call-in</button>
+    {{#if nick}}
+      <button class="btn btn-primary bb-callin-submit">Request Call-in</button>
+    {{else}}
+      <button class="btn btn-primary" disabled>Must be logged in</button>
+    {{/if}}
   </div>
 </div>
 </template>
