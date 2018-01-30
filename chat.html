@@ -3,12 +3,16 @@
   {{> messages}}
 
   {{#if ready}}
+    {{#with object}}
+      {{> puzzle_callin_modal}}
+      {{> puzzle_summon_modal}}
+    {{/with}}
   <div class="bb-chat-callin {{#if solved}}solved{{/if}}">
     {{#if solved}}Solved
     {{else}}
       {{#with object}}
-        {{> puzzle_callin_modal}}
-        {{> puzzle_summon_modal}}
+        {{> puzzle_callin_button}}
+        {{> puzzle_summon_button}}
       {{/with}}
     {{/if}}
   </div>
