@@ -18,7 +18,7 @@
 {{#with puzzle}}{{> blackboard_tags }}{{/with}}
 {{#if puzzle.solved}}{{#with puzzle}}{{> puzzle_correct_answer}}{{/with}}{{/if}}
 {{#with puzzle}}{{> puzzle_incorrect_answers}}{{/with}}
-
+{{> starred_messages canModify=nick}}
 {{#unless "true"}}
 <ul>
 <li>Round: {{link id=round._id}}</li>
