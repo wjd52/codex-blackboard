@@ -6,6 +6,9 @@
 </div>
 <div class="bb-menu-drawer fade">
   <ul class="nav nav-list bb-sidenav">
+    <li><a class="bb-wiki" href="{{wiki title=""}}"
+           target="_blank">Codex Wiki</a></li>
+    <li class="divider"></li>
     {{#each roundgroups}}
     <li class="nav-header">{{name}}</li>
     {{#each rounds}}
@@ -21,20 +24,6 @@
 
 <!-- puzzles w/ index -->
 <div class="row-fluid">
-  <div id="bb-sidebar" class="span2">
-    <ul class="nav nav-list bb-sidenav span2">
-      <li><a class="bb-wiki" href="{{wiki title=""}}"
-             target="_blank">Codex Wiki</a></li>
-      <li class="divider"></li>
-      {{#each roundgroups}}
-      <li class="nav-header">{{name}}</li>
-      {{#each rounds}}
-      <li><a title="r{{round_num}}" href="#r{{round._id}}{{updateScrollSpy}}"><i class="icon-chevron-right"></i>
-      {{round.name}}</a></li>
-      {{/each}}
-      {{/each}}
-    </ul>
-  </div>
   <div id="bb-tables" class="{{#if hideStatus}}span10{{else}}span8{{/if}} {{#if canEdit}}bb-canEdit{{/if}}">
     <!-- content div -->
 <div class="btn-toolbar pull-right text-right bb-top-buttons">
