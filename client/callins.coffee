@@ -42,6 +42,10 @@ Template.callins.helpers
 Template.callins.onRendered ->
   $("title").text("Answer queue")
   share.ensureNick()
+  this.clipboard = new Clipboard '.copy-and-go'
+
+Template.callins.onDestroyed ->
+  this.clipboard.destroy()
 
 Template.callins.events
   "click .bb-addquip-btn": (event, template) ->
@@ -99,3 +103,11 @@ Template.callin_row.events
        object: template.get_callin_id(event)
        fields: submitted_to_hq: checked
        who: Session.get('nick')
+
+  "click .copy-and-go": (event, template) ->
+     Meteor.call 'setField',
+       type: 'callins'
+       object: @_id
+       fields: submitted_to_hq: true
+       who: Session.get 'nick'
+
