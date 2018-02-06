@@ -9,12 +9,29 @@
     padding-right: 160px;
     height: 40px;
     overflow: hidden;
-    .bb-drive-buttons {
-      position: absolute;
-      right: 0;
-      width: 163px;
-      .bb-drive-link + .tooltip .tooltip-arrow {
-        left: auto; right: 20px;
+    .nav {
+      display: flex;
+      flex-flow: row nowrap;
+      justify-content: stretch;
+      float: none;
+      & > li {
+        display: flex;
+        flex-grow: 0;
+        flex-shrink: 0;
+        & > a + a {
+          padding-left: 0px;
+          margin-left: -10px;
+        }
+      }
+      & > .fill {
+        flex-grow: 1;
+        flex-shrink: 1;
+        overflow: hidden;
+      }
+      .bb-drive-buttons {
+        .bb-drive-link + .tooltip .tooltip-arrow {
+          left: auto; right: 20px;
+        }
       }
     }
   }
