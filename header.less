@@ -17,6 +17,20 @@
         display: flex;
         flex-grow: 0;
         flex-shrink: 0;
+        i.icon-white { position: relative }
+        i.solved-check {
+          position: absolute;
+          display: inline-block;
+          width: 14px; height: 14px; margin-top: 1px; line-height: 14px;
+          left: 0px;
+          @mask_image: url("/packages/bootstrap/img/glyphicons-halflings.png");
+          -webkit-mask-image: @mask_image;
+          mask-image: @mask_image;
+          background: #00dd00;
+          @mask_position: -288px 0px;
+          mask-position: @mask_position;
+          -webkit-mask-position: @mask_position;
+        }
         & > a + a {
           padding-left: 0px;
           margin-left: -10px;
