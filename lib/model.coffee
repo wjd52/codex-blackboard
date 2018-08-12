@@ -1,4 +1,9 @@
 'use strict'
+
+import canonical from './imports/canonical.coffee'
+import { NonEmptyString, IdOrObject, ObjectWith } from './imports/match.coffee'
+import { getTag, isStuck, canonicalTags } from './imports/tags.coffee'
+
 # Blackboard -- data model
 # Loaded on both the client and the server
 
@@ -6,47 +11,16 @@
 # client/server load.
 PRESENCE_KEEPALIVE_MINUTES = 2
 
-# how many chats in a page?
-MESSAGE_PAGE = 100
-
 # this is used to yield "zero results" in collections which index by timestamp
 NOT_A_TIMESTAMP = -9999
-
-# migrate old documents with different 'answer' representation
-MIGRATE_ANSWERS = false
-
-# move pages of messages to oldmessages collection
-MOVE_OLD_PAGES = true
 
 # Server-side, client-side, or no follow-up processing
 followupStyle = -> Meteor.settings?.public?.followupStyle ? 'client'
 
-emojify = (s) -> share.emojify?(s) or s
-
-# helper function: like _.throttle, but always ensures `wait` of idle time
-# between invocations.  This ensures that we stay chill even if a single
-# execution of the function starts to exceed `wait`.
-throttle = (func, wait = 0) ->
-  [context, args, running, pending] = [null, null, false, false]
-  later = ->
-    if pending
-      run()
-    else
-      running = false
-  run = ->
-    [running, pending] = [true, false]
-    try
-      func.apply(context, args)
-    # Note that the timeout doesn't start until the function has completed.
-    Meteor.setTimeout(later, wait)
-  (a...) ->
-    return if pending
-    [context, args] = [this, a]
-    if running
-      pending = true
-    else
-      running = true
-      Meteor.setTimeout(run, 0)
+emojify = if Meteor.isServer
+  require('../server/imports/emoji.coffee').default
+else
+  (s) -> s
 
 BBCollection = Object.create(null) # create new object w/o any inherited cruft
 
@@ -89,25 +63,6 @@ LastAnswer = BBCollection.last_answer = \
 RoundGroups = BBCollection.roundgroups = new Mongo.Collection "roundgroups"
 if Meteor.isServer
   RoundGroups._ensureIndex {canon: 1}, {unique:true, dropDups:true}
-  updateRoundStart = ->
-    round_start = 0
-    RoundGroups.find({}, sort: ["created"]).forEach (rg) ->
-      if rg.round_start isnt round_start
-        RoundGroups.update rg._id, $set: round_start: round_start
-      round_start += rg.rounds.length
-  # Note that throttle uses Meteor.setTimeout here even if a call isn't
-  # yet pending -- we want to ensure that we give all the observeChanges
-  # time to fire before we do the update.
-  # In theory we could use `Tracker.afterFlush`, but see
-  # https://github.com/meteor/meteor/issues/3293
-  queueUpdateRoundStart = throttle(updateRoundStart, 100)
-  # observe changes to the rounds field and update round_start
-  queueUpdateRoundStart()
-  RoundGroups.find({}).observeChanges
-    added: (id, fields) -> queueUpdateRoundStart()
-    removed: (id, fields) -> queueUpdateRoundStart()
-    changed: (id, fields) ->
-      queueUpdateRoundStart() if 'created' of fields or 'rounds' of fields
 
 # Rounds are:
 #   _id: mongodb id
@@ -128,33 +83,6 @@ if Meteor.isServer
 Rounds = BBCollection.rounds = new Mongo.Collection "rounds"
 if Meteor.isServer
   Rounds._ensureIndex {canon: 1}, {unique:true, dropDups:true}
-  if MIGRATE_ANSWERS
-    # migrate objects -- rename 'Meta answer' tag to 'Answer'
-    Meteor.startup ->
-      Rounds.find({}).forEach (r) ->
-        answer = getTag(r, 'Meta Answer')
-        return unless answer?
-        console.log 'Migrating round', r.name
-        tweak = (tag) ->
-          name = if tag.canon is 'meta_answer' then 'Answer' else tag.name
-          return {
-            name: name
-            canon: canonical(name)
-            value: tag.value
-            touched: tag.touched ? r.created
-            touched_by: tag.touched_by ? r.created_by
-          }
-        ntags = (tweak(tag) for tag in r.tags)
-        ntags.sort (a, b) -> (a?.canon or "").localeCompare (b?.canon or "")
-        [solved, solved_by] = [null, null]
-        ntags.forEach (tag) -> if tag.canon is canonical('Answer')
-          [solved, solved_by] = [tag.touched, tag.touched_by]
-        Rounds.update r._id, $set:
-          tags: ntags
-          incorrectAnswers: []
-          solved: solved
-          solved_by: solved_by
-
 
 # Puzzles are:
 #   _id: mongodb id
@@ -174,18 +102,6 @@ if Meteor.isServer
 Puzzles = BBCollection.puzzles = new Mongo.Collection "puzzles"
 if Meteor.isServer
   Puzzles._ensureIndex {canon: 1}, {unique:true, dropDups:true}
-  if MIGRATE_ANSWERS
-    # migrate objects -- we used to have an `answer` field in Puzzles.
-    Meteor.startup ->
-      Puzzles.find(answer: { $exists: true, $ne: null }).forEach (p) ->
-        console.log 'Migrating puzzle', p.name
-        update = {$set: {solved: p.solved}, $unset: {answer: ''}}
-        Meteor.call "setAnswer",
-          type: 'puzzles'
-          target: p._id
-          answer: p.answer
-          who: p.solved_by
-        Puzzles.update p._id, update
 
 # CallIns are:
 #   _id: mongodb id
@@ -199,8 +115,8 @@ if Meteor.isServer
 #   provided: true/false
 CallIns = BBCollection.callins = new Mongo.Collection "callins"
 if Meteor.isServer
-   CallIns._ensureIndex {created: 1}, {}
-   CallIns._ensureIndex {type: 1, target: 1, answer: 1}, {unique:true, dropDups:true}
+  CallIns._ensureIndex {created: 1}, {}
+  CallIns._ensureIndex {type: 1, target: 1, answer: 1}, {unique:true, dropDups:true}
 
 # Quips are:
 #   _id: mongodb id
@@ -230,35 +146,6 @@ Nicks = BBCollection.nicks = new Mongo.Collection "nicks"
 if Meteor.isServer
   Nicks._ensureIndex {canon: 1}, {unique:true, dropDups:true}
   Nicks._ensureIndex {priv_located_order: 1}, {}
-  # synchronize priv_located* with located* at a throttled rate.
-  # order by priv_located_order, which we'll clear when we apply the update
-  # this ensures nobody gets starved for updates
-  do ->
-    # limit to 10 location updates/minute
-    LOCATION_BATCH_SIZE = 10
-    LOCATION_THROTTLE = 60*1000
-    runBatch = ->
-      Nicks.find({
-        priv_located_order: { $exists: true, $ne: null }
-      }, {
-        sort: [['priv_located_order','asc']]
-        limit: LOCATION_BATCH_SIZE
-      }).forEach (n, i) ->
-        console.log "Updating location for #{n.name} (#{i})"
-        Nicks.update n._id,
-          $set:
-            located: n.priv_located
-            located_at: n.priv_located_at
-          $unset: priv_located_order: ''
-    maybeRunBatch = throttle(runBatch, LOCATION_THROTTLE)
-    Nicks.find({
-      priv_located_order: { $exists: true, $ne: null }
-    }, {
-      fields: priv_located_order: 1
-    }).observeChanges
-      added: (id, fields) -> maybeRunBatch()
-      # also run batch on removed: batch size might not have been big enough
-      removed: (id) -> maybeRunBatch()
 
 # Messages
 #   body: string
@@ -305,66 +192,6 @@ if Meteor.isServer
     M._ensureIndex {to:1, room_name:1, timestamp:-1}, {}
     M._ensureIndex {nick:1, room_name:1, timestamp:-1}, {}
     M._ensureIndex {room_name:1, timestamp:-1}, {}
-  # watch messages collection and set the followup field as appropriate
-  # (followup field should already be set properly when the field is
-  #  archived into the OldMessages collection)
-  if followupStyle() is 'server' then do ->
-    # defer (and then throttle) this computation on startup, so
-    # startup doesn't take forever.
-    initiallyDefer = true
-    check = (room_name, timestamp, m) ->
-      return if initiallyDefer
-      prev = Messages.find(
-        {room_name: room_name, timestamp: $lt: +timestamp},
-        {sort:[['timestamp','desc']], limit: 1 }).fetch()
-      eq = Messages.find(
-        {room_name: room_name, timestamp: +timestamp},
-        {sort:[['timestamp','asc']]}).fetch()
-      next = Messages.find(
-        {room_name: room_name, timestamp: $gt: +timestamp},
-        {sort:[['timestamp','asc']], limit: 1}).fetch()
-      affected = prev.concat(eq, next)
-      # ok, for all possibly affected messages, see if the followup field is
-      # correct.
-      for i in [1...affected.length] by 1
-        [ prev, curr ] = [ affected[i-1], affected[i] ]
-        f = computeMessageFollowup prev, curr
-        if (!!curr.followup) != f
-          console.log 'Updating followup status', curr._id, curr.nick
-          Messages.update curr._id, $set: followup: f
-    Messages.find({}).observe
-      added: (msg) -> check(msg.room_name, msg.timestamp, msg)
-      removed: (msg) -> check(msg.room_name, msg.timestamp)
-      changed: (nmsg, omsg) ->
-        check(omsg.room_name, omsg.timestamp)
-        check(nmsg.room_name, nmsg.timestamp, nmsg)
-    initiallyDefer = false
-    # ok, now we're going to (slowly) check all the messages, in chunks,
-    # at startup. We're throttling this so we don't hose the server on
-    # restart.
-    [checked,alleq] = [0,false]
-    CHUNK_SIZE = 50 # messages
-    CHUNK_PACE = 10 # seconds
-    checkChunk = throttle ->
-      cur = if alleq
-        Messages.find(timestamp: checked)
-      else
-        Messages.find({timestamp: $gt: checked},{sort:[['timestamp','asc']], limit: CHUNK_SIZE})
-      lastTimestamp = null
-      cur.forEach (msg) ->
-        lastTimestamp = msg.timestamp
-        check(msg.room_name, msg.timestamp, msg)
-      if alleq
-        alleq = false
-        checkChunk()
-      else if lastTimestamp?
-        checked = lastTimestamp
-        alleq = true
-        checkChunk()
-      else
-        console.log 'Done checking followups.'
-    , CHUNK_PACE*1000
-    checkChunk()
 
 # Pages -- paging metadata for Messages collection
 #   from: timestamp (first page has from==0)
@@ -376,71 +203,12 @@ if Meteor.isServer
 # Messages with from <= timestamp < to are included in a specific page.
 Pages = BBCollection.pages = new Mongo.Collection "pages"
 if Meteor.isServer
-  # used in the server observe code below
+  # used in the observe code in server/batch.coffee
   Pages._ensureIndex {room_name:1, to:-1}, {unique:true}
   # used in the publish method
   Pages._ensureIndex {next: 1, room_name:1}, {}
   # used for archiving
   Pages._ensureIndex {archived:1, next:1, to:1}, {}
-  # ensure old pages have the `archived` field
-  Meteor.startup ->
-    Pages.find(archived: $exists: false).forEach (p) ->
-      Pages.update p._id, $set: archived: false
-  # move messages to oldmessages collection
-  queueMessageArchive = throttle ->
-    p = Pages.findOne({archived: false, next: $ne: null}, {sort:[['to','asc']]})
-    return unless p?
-    limit = 2 * MESSAGE_PAGE
-    loop
-      msgs = Messages.find({room_name: p.room_name, timestamp: $lt: p.to}, \
-        {sort:[['to','asc']], limit: limit, reactive: false}).fetch()
-      OldMessages.upsert(m._id, m) for m in msgs
-      Pages.update(p._id, $set: archived: true) if msgs.length < limit
-      Messages.remove(m._id) for m in msgs
-      break if msgs.length < limit
-    queueMessageArchive()
-  , 60*1000 # no more than once a minute
-  # watch messages collection and create pages as necessary
-  do ->
-    unpaged = Object.create(null)
-    Messages.find({}, sort:[['timestamp','asc']]).observe
-      added: (msg) ->
-        room_name = msg.room_name
-        # don't count pms (so we don't end up with a blank 'page')
-        return if msg.to
-        # add to (conservative) count of unpaged messages
-        # (this message might already be in a page, but we'll catch that below)
-        unpaged[room_name] = (unpaged[room_name] or 0) + 1
-        return if unpaged[room_name] < MESSAGE_PAGE
-        # recompute page parameters before adding a new page
-        # (be safe in case we had out-of-order observations)
-        # find highest existing page
-        p = Pages.findOne({room_name: room_name}, {sort:[['to','desc']]})\
-          or { _id: null, room_name: room_name, from: -1, to: 0 }
-        # count the number of unpaged messages
-        m = Messages.find(\
-          {room_name: room_name, to: null, timestamp: $gte: p.to}, \
-          {sort:[['timestamp','asc']], limit: MESSAGE_PAGE}).fetch()
-        if m.length < MESSAGE_PAGE
-          # false alarm: reset unpaged message count and continue
-          unpaged[room_name] = m.length
-          return
-        # ok, let's make a new page.  this will include at least all the
-        # messages in m, possibly more (if there are additional messages
-        # added with timestamp == m[m.length-1].timestamp)
-        pid = Pages.insert
-          room_name: room_name
-          from: p.to
-          to: 1 + m[m.length-1].timestamp
-          prev: p._id
-          next: null
-          archived: false
-        if p._id?
-          Pages.update p._id, $set: next: pid
-        unpaged[room_name] = 0
-        queueMessageArchive() if MOVE_OLD_PAGES
-  # migrate messages to old messages collection
-  (Meteor.startup queueMessageArchive) if MOVE_OLD_PAGES
 
 # Last read message for a user in a particular chat room
 #   nick: canonicalized string, as in Messages
@@ -463,53 +231,6 @@ if Meteor.isServer
   Presence._ensureIndex {nick: 1, room_name:1}, {unique:true, dropDups:true}
   Presence._ensureIndex {timestamp:-1}, {}
   Presence._ensureIndex {present:1, room_name:1}, {}
-  # ensure old entries are timed out after 2*PRESENCE_KEEPALIVE_MINUTES
-  # some leeway here to account for client/server time drift
-  Meteor.setInterval ->
-    #console.log "Removing entries older than", (UTCNow() - 5*60*1000)
-    removeBefore = UTCNow() - (2*PRESENCE_KEEPALIVE_MINUTES*60*1000)
-    Presence.remove timestamp: $lt: removeBefore
-  , 60*1000
-  # generate automatic "<nick> entered <room>" and <nick> left room" messages
-  # as the presence set changes
-  initiallySuppressPresence = true
-  Presence.find(present: true).observe
-    added: (presence) ->
-      return if initiallySuppressPresence
-      # look up a real name, if there is one
-      n = Nicks.findOne canon: canonical(presence.nick)
-      name = getTag(n, 'Real Name') or presence.nick
-      #console.log "#{name} entered #{presence.room_name}"
-      return if presence.room_name is 'oplog/0'
-      Messages.insert
-        system: true
-        nick: presence.nick
-        to: null
-        presence: 'join'
-        body: "#{name} joined the room."
-        bodyIsHtml: false
-        room_name: presence.room_name
-        timestamp: UTCNow()
-    removed: (presence) ->
-      return if initiallySuppressPresence
-      # look up a real name, if there is one
-      n = Nicks.findOne canon: canonical(presence.nick)
-      name = getTag(n, 'Real Name') or presence.nick
-      #console.log "#{name} left #{presence.room_name}"
-      return if presence.room_name is 'oplog/0'
-      Messages.insert
-        system: true
-        nick: presence.nick
-        to: null
-        presence: 'part'
-        body: "#{name} left the room."
-        bodyIsHtml: false
-        room_name: presence.room_name
-        timestamp: UTCNow()
-  # turn on presence notifications once initial observation set has been
-  # processed. (observe doesn't return on server until initial observation
-  # is complete.)
-  initiallySuppressPresence = false
 
 # this reverses the name given to Mongo.Collection; that is the
 # 'type' argument is the name of a server-side Mongo collection.
@@ -527,21 +248,6 @@ pretty_collection = (type) ->
     when "oldmessages" then "old message"
     else type.replace(/s$/, '')
 
-getTag = (object, name) ->
-  (tag.value for tag in (object?.tags or []) when tag.canon is canonical(name))[0]
-
-isStuck = (object) ->
-  object? and /^stuck\b/i.test(getTag(object, 'Status') or '')
-
-# canonical names: lowercases, all non-alphanumerics replaced with '_'
-canonical = (s) ->
-  s = s.toLowerCase().replace(/^\s+/, '').replace(/\s+$/, '') # lower, strip
-  # suppress 's and 't
-  s = s.replace(/[\'\u2019]([st])\b/g, "$1")
-  # replace all non-alphanumeric with _
-  s = s.replace(/[^a-z0-9]+/g, '_').replace(/^_/,'').replace(/_$/,'')
-  return s
-
 drive_id_to_link = (id) ->
   "https://docs.google.com/folder/d/#{id}/edit"
 spread_id_to_link = (id) ->
@@ -551,16 +257,8 @@ spread_id_to_link = (id) ->
   # private helpers, not exported
   unimplemented = -> throw new Meteor.Error(500, "Unimplemented")
 
-  canonicalTags = (tags, who) ->
-    check tags, [ObjectWith(name:NonEmptyString,value:Match.Any)]
-    now = UTCNow()
-    ({
-      name: tag.name
-      canon: canonical(tag.name)
-      value: tag.value
-      touched: tag.touched ? now
-      touched_by: tag.touched_by ? canonical(who)
-    } for tag in tags)
+  isDuplicateError = (error) ->
+    Meteor.isServer and error?.name is 'MongoError' and error?.code==11000
 
   huntPrefix = (type) ->
     # this is a huge hack, it's too hard to find the correct
@@ -572,9 +270,6 @@ spread_id_to_link = (id) ->
     else
       return Meteor.settings?[type+'_prefix']
 
-  NonEmptyString = Match.Where (x) ->
-    check x, String
-    return x.length > 0
   # a key of BBCollection
   ValidType = Match.Where (x) ->
     check x, NonEmptyString
@@ -583,17 +278,6 @@ spread_id_to_link = (id) ->
   ValidAnswerType = Match.Where (x) ->
     check x, ValidType
     x == 'puzzles' || x == 'rounds' || x == 'roundgroups'
-  # either an id, or an object containing an id
-  IdOrObject = Match.OneOf NonEmptyString, Match.Where (o) ->
-    typeof o is 'object' and ((check o._id, NonEmptyString) or true)
-  # This is like Match.ObjectIncluding, but we don't require `o` to be
-  # a plain object
-  ObjectWith = (pattern) ->
-    Match.Where (o) ->
-      return false if typeof(o) is not 'object'
-      Object.keys(pattern).forEach (k) ->
-        check o[k], pattern[k]
-      true
 
   oplog = (message, type="", id="", who="", stream="") ->
     Messages.insert
@@ -629,7 +313,7 @@ spread_id_to_link = (id) ->
     try
       object._id = collection(type).insert object
     catch error
-      if Meteor.isServer and error?.name is 'MongoError' and error?.code==11000
+      if isDuplicateError error
         # duplicate key, fetch the real thing
         return collection(type).findOne({canon:canonical(args.name)})
       throw error # something went wrong, who knows what, pass it on
@@ -651,11 +335,17 @@ spread_id_to_link = (id) ->
     if collection(type).findOne(args.id).name is args.name
       return false
 
-    collection(type).update args.id, $set:
-      name: args.name
-      canon: canonical(args.name)
-      touched: now
-      touched_by: canonical(args.who)
+    try
+      collection(type).update args.id, $set:
+        name: args.name
+        canon: canonical(args.name)
+        touched: now
+        touched_by: canonical(args.who)
+    catch error
+      # duplicate name--bail out
+      if isDuplicateError error
+        return false
+      throw error
     unless options.suppressLog
       oplog "Renamed", type, args.id, args.who
     return true
@@ -878,13 +568,12 @@ spread_id_to_link = (id) ->
       return false unless old? and old?.puzzles?.length is 0
       # get drive ID (racy)
       drive = old?.drive
-      spreadsheet = old?.spreadsheet
       # remove round itself
       r = deleteObject "rounds", args
       # remove from all roundgroups
       RoundGroups.update { rounds: rid },{ $pull: rounds: rid },{ multi: true }
       # delete google drive folder and all contents, recursively
-      deleteDriveFolder drive, spreadsheet if drive?
+      deleteDriveFolder drive if drive?
       # XXX: delete chat room logs?
       return r
 
@@ -923,13 +612,12 @@ spread_id_to_link = (id) ->
       # get drive ID (racy)
       old = Puzzles.findOne(args.id)
       drive = old?.drive
-      spreadsheet = old?.spreadsheet
       # remove puzzle itself
       r = deleteObject "puzzles", args
       # remove from all rounds
       Rounds.update { puzzles: pid },{ $pull: puzzles: pid },{ multi: true }
       # delete google drive folder
-      deleteDriveFolder drive, spreadsheet if drive?
+      deleteDriveFolder drive if drive?
       # XXX: delete chat room logs?
       return r
 
@@ -1156,17 +844,6 @@ spread_id_to_link = (id) ->
           nick: newMsg.nick
           room_name: newMsg.room_name
           timestamp: newMsg.timestamp
-      # update the 'followup' field to reduce flicker.
-      # it doesn't matter if this computation isn't exact (for example if
-      # there are multiple messages with the same timestamp); there's
-      # a server observe thread to compute the actual correct value.  we just
-      # want to reduce flicker in the common case.
-      if followupStyle() is 'server'
-        prev = Messages.find(
-          {room_name: newMsg.room_name, timestamp: $lt: newMsg.timestamp},
-          {sort: [['timestamp','desc']], limit: 1 }).fetch()
-        if prev.length and computeMessageFollowup(prev[0], newMsg)
-          newMsg.followup = true
       newMsg._id = Messages.insert newMsg
       return newMsg
 
@@ -1185,8 +862,7 @@ spread_id_to_link = (id) ->
       catch e
         # ignore duplicate key errors; they are harmless and occur when we
         # try to move the LastRead.timestamp backwards.
-        if Meteor.isServer and e?.name is 'MongoError' and e?.code==11000
-          return false
+        return false if isDuplicateError e
         throw e
 
     setPresence: (args) ->
@@ -1326,7 +1002,8 @@ spread_id_to_link = (id) ->
       if obj.solved
         return "#{pretty_collection args.type} #{obj.name} is already answered"
       wasStuck = isStuck obj
-      how = args.how or 'Stuck'
+      rawhow = args.how or 'Stuck'
+      how = if rawhow.toLowerCase().startsWith('stuck') then rawhow else "Stuck: #{rawhow}"
       setTagInternal
         object: id
         type: args.type
@@ -1337,7 +1014,7 @@ spread_id_to_link = (id) ->
       if wasStuck
         return
       oplog "Help requested for", args.type, id, args.who, 'stuck'
-      body = "has requested help: #{how}"
+      body = "has requested help: #{rawhow}"
       Meteor.call 'newMessage',
         nick: args.who
         action: true
@@ -1345,7 +1022,7 @@ spread_id_to_link = (id) ->
         room_name: "#{args.type}/#{id}"
       objUrl = # see Router.urlFor
         Meteor._relativeToSiteRootUrl "/#{args.type}/#{id}"
-      body = "has requested help: #{UI._escape how} (#{pretty_collection args.type} <a class=\"#{UI._escape args.type}-link\" href=\"#{objUrl}\">#{UI._escape obj.name}</a>)"
+      body = "has requested help: #{UI._escape rawhow} (#{pretty_collection args.type} <a class=\"#{UI._escape args.type}-link\" href=\"#{objUrl}\">#{UI._escape obj.name}</a>)"
       Meteor.call 'newMessage',
         nick: args.who
         action: true
@@ -1603,7 +1280,6 @@ UTCNow = -> Date.now()
 share.model =
   # constants
   PRESENCE_KEEPALIVE_MINUTES: PRESENCE_KEEPALIVE_MINUTES
-  MESSAGE_PAGE: MESSAGE_PAGE
   NOT_A_TIMESTAMP: NOT_A_TIMESTAMP
   # collection types
   CallIns: CallIns
@@ -1625,6 +1301,7 @@ share.model =
   getTag: getTag
   isStuck: isStuck
   followupStyle: followupStyle
+  computeMessageFollowup: computeMessageFollowup
   canonical: canonical
   drive_id_to_link: drive_id_to_link
   spread_id_to_link: spread_id_to_link

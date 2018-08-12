@@ -1,6 +1,8 @@
 codex-blackboard
 ================
 
+[![Build Status](https://travis-ci.org/cjb/codex-blackboard.svg?branch=master)](https://travis-ci.org/cjb/codex-blackboard)
+
 Meteor app for coordating solving for our MIT Mystery Hunt team.  To run,
 first obtain the password for our google drive account.  Then:
 
