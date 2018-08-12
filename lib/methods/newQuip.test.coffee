@@ -39,7 +39,3 @@ describe 'newQuip', ->
 
   it 'oplogs', ->
     chai.assert.lengthOf model.Messages.find({type: 'quips', id: id}).fetch(), 1
-
-    
-
-  

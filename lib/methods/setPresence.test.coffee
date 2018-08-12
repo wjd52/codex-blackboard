@@ -131,4 +131,3 @@ describe 'setPresence', ->
         present: true
         foreground: false
         foreground_uuid: '23456'
-    
