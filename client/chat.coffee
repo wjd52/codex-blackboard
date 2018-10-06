@@ -558,7 +558,7 @@ Template.chat.onRendered ->
   @autorun ->
     nick = reactiveLocalStorage.getItem 'nick'
     return unless nick
-    return unless Session.get('page') is 'chat'
+    return unless Session.equals 'page', 'chat'
     type = Session.get('type')
     id = Session.get('id')
     joinRoom type, id
