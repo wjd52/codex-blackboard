@@ -32,6 +32,7 @@ updateLocation = do ->
     if last?
       return if pos.lat == last.lat and pos.lng == last.lng
       return if distance(last, pos) < GEOLOCATION_DISTANCE_THRESHOLD
+    last = pos
     Tracker.nonreactive ->
       Meteor.call 'locateNick',
         nick: nick
