@@ -189,12 +189,7 @@ Template.messages.helpers
     "/chat/#{p.room_name}/#{p.to}"
   messages: ->
     room_name = Session.get 'room_name'
-    # I will go out on a limb and say we need this because transform uses
-    # doesMentionNick and transforms aren't usually reactive, so we need to
-    # recompute them if you log in as someone else.
-    reactiveLocalStorage.getItem 'nick'
     p = pageForTimestamp room_name, +Session.get('timestamp')
-    serverFollowup =
     messages = messagesForPage p,
       sort: [['timestamp','asc']]
       transform: messageTransform
