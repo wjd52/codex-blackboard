@@ -306,7 +306,8 @@ if Meteor.isServer
     M._ensureIndex {to:1, room_name:1, timestamp:-1}, {}
     M._ensureIndex {nick:1, room_name:1, timestamp:-1}, {}
     M._ensureIndex {room_name:1, timestamp:-1}, {}
-    M._ensureIndex {room_name:1, starred: -1, timestamp: 1}, {}
+    M._ensureIndex {room_name:1, starred: -1, timestamp: 1},
+      partialFilterExpression: starred: true
   # watch messages collection and set the followup field as appropriate
   # (followup field should already be set properly when the field is
   #  archived into the OldMessages collection)
