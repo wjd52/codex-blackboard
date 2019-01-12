@@ -1,4 +1,7 @@
 'use strict'
+
+import { reactiveLocalStorage } from './imports/storage.coffee'
+
 model = share.model # import
 settings = share.settings # import
 
