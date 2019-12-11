@@ -72,11 +72,19 @@ Template.puzzle.helpers
   hsize: -> share.Splitter.hsize.get()
   currentViewIs: (view) -> currentViewIs @puzzle, view
   color: -> color @puzzle if @puzzle
+  docLoaded: -> Template.instance().docLoaded.get()
 
 Template.header_breadcrumb_extra_links.helpers
   currentViewIs: (view) -> currentViewIs this, view
 
 Template.puzzle.onCreated ->
+  @docLoaded = new ReactiveVar false
+  @autorun =>
+    if Session.equals 'view', 'doc'
+      @docLoaded.set true
+      return
+    model.Puzzles.findOne(Session.get('id'), {fields: {doc: 1}})
+    @docLoaded.set false
   this.autorun =>
     # set page title
     id = Session.get 'id'
