@@ -151,166 +151,145 @@ body.has-emojis {
   }
 }
 
+@left-size: 85px;
+@right-size: 45px;
+@vert-padding: 4px;
+
 #bb-body {
   padding-top: @navbar-height;
   padding-bottom: 15px;
-
-  @left-size: 85px;
-  @right-size: 45px;
-  @vert-padding: 4px;
-
-  .bb-buttonbar {
-    text-align: right;
-    padding-right: 5px;
-    .btn-group { text-align: left; }
-    .btn-toolbar { margin-top: 0; margin-bottom: 0; }
-    .tooltip-inner {
-      color: #000;
-      background-color: #eee;
-      border-color: black;
-      border-style: solid;
-      border-width: 0 1px 1px 1px;
-    }
-    .tooltip.bottom .tooltip-arrow {
-      border-bottom-color: #eee;
-    }
-    /* tweak to fix up moving buttons when tooltip appears */
-    .bb-protect { margin-right: -1px; }
-    .bb-unprotect { margin-left: 0; }
-  }
-  .bb-breadcrumbs .tooltip-inner { .bb-buttonbar .tooltip-inner; }
-  .bb-breadcrumbs .tooltip.bottom .tooltip-arrow { .bb-buttonbar .tooltip.bottom .tooltip-arrow; }
-
-  .bb-lastchat, .bb-lastupdate {
-    margin-bottom: @vert-padding;
-    margin-top: @vert-padding;
-    padding: 0 (15px + @right-size) 0 (14px + @left-size);
-    & > .left { margin-left: (-@left-size); }
-    & > .right { margin-right: (-@right-size);
-                 text-align: right;
-                 a[title], a[data-original-title] { position:relative; }
-      .bb-pop-out { font-size: 80%; }
-    }
-    &, .messageRow { .ellipsis; }
-  }
-  .bb-lastchat .messageRow {
-    margin-top: 0;
-    margin-bottom: 0;
-    font: 90%;
-    line-height: 1.25;
-  }
-  .bb-lastchat > .right { line-height: 16px; }
-  .bb-lastchat, .bb-lastupdate {
-    .timestamp { color: #555; }
-  }
-  .bb-lastupdate {
-    .comma-list { text-transform: uppercase; }
-  }
-  .bb-chat-presence {
-    .ellipsis;
-    /* tweak the height by 1px to get text baselines to line up. */
-    /* yes, this is incredibly anal. */
-    padding-top: 1px;
-    margin-bottom: -1px;
-  }
-
-  .answer {
-    text-transform: uppercase;
-  }
-  .bb-colorbox {
-    display: inline-block;
-    width: 1em;
-    height:1em;
-    border: 0.1em solid black;
-    vertical-align: text-bottom;
-  }
-  .bb-othermeta {
-    display: inline-block;
-  }
-  input[type=color] {
-    width: 14px;
-    height: 14px;
-    padding: 0px 0px;
-    margin-right: 0.25em;
-  }
+  &.compactHeader { padding-top: @navbar-height - 40px; }
 }
 
-#bb-right-sidebar {
-  position: fixed;
-  right: 14px;
-  bottom: 0px;
-  top: @navbar-height + 10px;
+.bb-buttonbar {
   display: flex;
   flex-direction: column;
-
-  & > div { position: relative; }
-
-  .bb-hide-status {
-    position: absolute;
-    margin-top: 0;
-    top: 10px;
-    left: -21px;
-    right: auto;
-    z-index: 1;
-    @media(max-width: 980px) {
-      left: -14px;
-    }
-    -webkit-box-shadow: none;
-       -moz-box-shadow: none;
-            box-shadow: none;
+  text-align: right;
+  padding-right: 5px;
+  .compactHeader & { flex-direction: row; }
+  .btn-group { text-align: left; }
+  .btn-toolbar { margin-top: 0; margin-bottom: 0; }
+  .tooltip-inner {
+    color: #000;
+    background-color: #eee;
+    border-color: black;
+    border-style: solid;
+    border-width: 0 1px 1px 1px;
   }
+  .tooltip.bottom .tooltip-arrow {
+    border-bottom-color: #eee;
+  }
+  /* tweak to fix up moving buttons when tooltip appears */
+  .bb-protect { margin-right: -1px; }
+  .bb-unprotect { margin-left: 0; }
+}
 
-  .bb-status-grid {
-    background: white;
-    margin-top: 10px;
-    margin-left: -7px;
-    margin-right: -7px;
-    overflow-y: auto;
-    @media(max-width: 980px) {
-      margin-left: 0px;
-      margin-right: 0px;
-    }
-    min-height: 66px;
-    -webkit-border-radius: 6px;
-       -moz-border-radius: 6px;
-            border-radius: 6px;
-    -webkit-border-top-left-radius: 0;
-       -moz-border-top-left-radius: 0;
-            border-top-left-radius: 0;
-    border: 1px solid #e5e5e5;
-    -webkit-box-shadow: 0 1px 4px rgba(0,0,0,0.065);
-       -moz-box-shadow: 0 1px 4px rgba(0,0,0,0.065);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.065);
+.bb-breadcrumbs .tooltip-inner { .bb-buttonbar .tooltip-inner; }
+.bb-breadcrumbs .tooltip.bottom .tooltip-arrow { .bb-buttonbar .tooltip.bottom .tooltip-arrow; }
 
-    padding: 5px;
-    font-size: 80%;
+.bb-lastchat, .bb-lastupdate {
+  margin-bottom: @vert-padding;
+  margin-top: @vert-padding;
+  padding: 0 (15px + @right-size) 0 (14px + @left-size);
+  & > .left { margin-left: (-@left-size); }
+  & > .right { margin-right: (-@right-size);
+                text-align: right;
+                a[title], a[data-original-title] { position:relative; }
+    .bb-pop-out { font-size: 80%; }
+  }
+  &, .messageRow { .ellipsis; }
+}
+.bb-lastchat .messageRow {
+  margin-top: 0;
+  margin-bottom: 0;
+  font: 90%;
+  line-height: 1.25;
+}
+.bb-lastchat > .right { line-height: 16px; }
+.bb-lastchat, .bb-lastupdate {
+  .timestamp { color: #555; }
+}
+.bb-lastupdate {
+  .comma-list { text-transform: uppercase; }
+}
+.bb-chat-presence {
+  .ellipsis;
+  /* tweak the height by 1px to get text baselines to line up. */
+  /* yes, this is incredibly anal. */
+  padding-top: 1px;
+  margin-bottom: -1px;
+}
 
-    .bb-status-grid-round {
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-    td {
-      padding: 0px;
-    }
-    .bb-status-grid-meta {
-      padding-right:2px;
-    }
-    .bb-status-grid-cell {
-      display: inline-block;
-      width: 1.5em;
-      text-align: center;
-    }
-    .bb-status-solved {
-      background:#AAFF99;
-    }
-    .bb-status-stuck {
-      background:#FFFF00;
-    }
-    .bb-status-unsolved {
-      background:#FCFCFC;
-    }
+.answer {
+  text-transform: uppercase;
+}
+.bb-colorbox {
+  display: inline-block;
+  width: 1em;
+  height:1em;
+  border: 0.1em solid black;
+  vertical-align: text-bottom;
+}
+.bb-othermeta {
+  display: inline-block;
+}
+input[type=color] {
+  width: 14px;
+  height: 14px;
+  padding: 0px 0px;
+  margin-right: 0.25em;
+}
+
+.bb-status-grid {
+  position: relative;
+  background: white;
+  margin-top: 10px;
+  overflow-y: auto;
+  @media(max-width: 980px) {
+    margin-left: 0px;
+    margin-right: 0px;
+  }
+  min-height: 66px;
+  -webkit-border-radius: 6px;
+      -moz-border-radius: 6px;
+          border-radius: 6px;
+  -webkit-border-top-left-radius: 0;
+      -moz-border-top-left-radius: 0;
+          border-top-left-radius: 0;
+  border: 1px solid #e5e5e5;
+  -webkit-box-shadow: 0 1px 4px rgba(0,0,0,0.065);
+      -moz-box-shadow: 0 1px 4px rgba(0,0,0,0.065);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.065);
+
+  padding: 5px;
+  font-size: 80%;
+
+  .bb-status-grid-round {
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  td {
+    padding: 0px;
+  }
+  .bb-status-grid-meta {
+    padding-right:2px;
+  }
+  .bb-status-grid-cell {
+    display: inline-block;
+    width: 1.5em;
+    text-align: center;
+  }
+  .bb-status-solved {
+    background:#AAFF99;
+  }
+  .bb-status-stuck {
+    background:#FFFF00;
+  }
+  .bb-status-unsolved {
+    background:#FCFCFC;
   }
 }
+
 .bb-canEdit .bb-editable {
   &:hover {
     background: #fcffc0;
@@ -594,7 +573,7 @@ body.has-emojis {
     padding-top: 0px;
     padding-bottom: 0;
     #bb-content > #bb-blackboard {
-      padding-top: @navbar-height;
+      padding-top: @navbar-height - 40px;
     }
   }
   #bb-tables {
@@ -627,7 +606,7 @@ body.has-emojis {
       & > .bb-puzzleround {
         position: absolute;
         left: 20px; right: 20px; width: auto;
-        top: 109px; bottom: 3px; height: auto;
+        top: 69px; bottom: 3px; height: auto;
         padding-top: 0;
       }
     }
