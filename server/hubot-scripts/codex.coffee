@@ -23,6 +23,7 @@ import {rejoin, strip, thingRE, objectFromRoom } from '../imports/botutil.coffee
 import { callAs, impersonating } from '../imports/impersonate.coffee'
 import { all_settings } from '/lib/imports/settings.coffee'
 import canonical from '/lib/imports/canonical.coffee'
+import * as callin_types from '/lib/imports/callin_types.coffee'
 
 share.hubot.codex = (robot) ->
 
@@ -85,7 +86,7 @@ share.hubot.codex = (robot) ->
       target = objectFromRoom msg
       return unless target?
     callAs "newCallIn", who,
-      type: target.type
+      target_type: target.type
       target: target.object._id
       answer: answer
       backsolve: backsolve
@@ -93,6 +94,43 @@ share.hubot.codex = (robot) ->
       # I don't mind a little redundancy, but if it bothers you uncomment this:
       #suppressRoom: msg.envelope.room
     msg.reply useful: true, "Okay, \"#{answer}\" for #{target.object.name} added to call-in list!"
+    msg.finish()
+
+  robot.commands.push 'bot request interaction <answer> [for <puzzle>] - Updates codex blackboard'
+  robot.commands.push 'bot tell hq <message> [for <puzzle>] - Updates codex blackboard'
+  robot.commands.push 'bot expect callback <message> [for <puzzle>] - Updates codex blackboard'
+  robot.respond (rejoin /(Request\s+interaction|tell\s+hq|expect\s+callback) /,thingRE,'(?:',/\ for /,thingRE,')?',/$/i), (msg) ->
+    callin_type = switch canonical(msg.match[1])
+      when 'request_interaction'
+        callin_types.INTERACTION_REQUEST
+      when 'tell_hq'
+        callin_types.MESSAGE_TO_HQ
+      when 'expect_callback'
+        callin_types.EXPECTED_CALLBACK
+
+    answer = strip msg.match[2]
+    name = if msg.match[3]? then strip msg.match[3]
+    who = msg.envelope.user.id
+    if name?
+      target = callAs "getByName", who,
+        name: name
+        optional_type: type ? "puzzles"
+      if not target and not type?
+        target = callAs "getByName", who, name: name
+      if not target
+        msg.reply useful: true, "I can't find a puzzle called \"#{name}\"."
+        return msg.finish()
+    else
+      target = objectFromRoom msg
+      return unless target?
+    callAs "newCallIn", who,
+      target_type: target.type
+      target: target.object._id
+      answer: answer
+      callin_type: callin_type
+      # I don't mind a little redundancy, but if it bothers you uncomment this:
+      #suppressRoom: msg.envelope.room
+    msg.reply useful: true, "Okay, #{callin_type} \"#{answer}\" for #{target.object.name} added to call-in list!"
     msg.finish()
 
 # deleteAnswer

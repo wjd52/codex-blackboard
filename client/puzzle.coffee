@@ -2,6 +2,7 @@
 
 import color from './imports/objectColor.coffee'
 import embeddable from './imports/embeddable.coffee'
+import * as callin_types from '/lib/imports/callin_types.coffee'
 
 model = share.model # import
 settings = share.settings # import
@@ -138,11 +139,40 @@ Template.puzzle_summon_modal.events
 Template.puzzle_callin_button.events
   "click .bb-callin-btn": (event, template) ->
     $('#callin_modal input:text').val('')
-    $('#callin_modal input:checked').val([])
+    $('#callin_modal input[type="checkbox"]:checked').val([])
     $('#callin_modal').modal show: true
-    $('#callin_mdal input:text').focus()
+    $('#callin_modal input:text').focus()
+
+Template.puzzle_callin_modal.onCreated ->
+  @type = new ReactiveVar callin_types.ANSWER
+
+Template.puzzle_callin_modal.onRendered ->
+  @$("input[name='callin_type'][value='#{@type.get()}']").prop('checked', true)
+
+Template.puzzle_callin_modal.helpers
+  type: -> Template.instance().type.get()
+  typeIs: (type) -> Template.instance().type.get() is type
+  typeName: (type) -> switch (type ? Template.instance().type.get())
+    when callin_types.ANSWER then 'Answer'
+    when callin_types.INTERACTION_REQUEST then 'Interaction Request'
+    when callin_types.MESSAGE_TO_HQ then 'Message to HQ'
+    when callin_types.EXPECTED_CALLBACK then 'Expected Callback'
+    else ''
+  tooltip: (type) -> switch type
+    when callin_types.ANSWER then 'The solution to the puzzle. Fingers crossed!'
+    when callin_types.INTERACTION_REQUEST then 'An intermediate string that may trigger a skit, physical puzzle, or creative challenge.'
+    when callin_types.MESSAGE_TO_HQ then 'Any other reason for contacting HQ, including spending clue currency and reporting an error.'
+    when callin_types.EXPECTED_CALLBACK then 'We will be contacted by HQ. No immediate action is required of the oncall.'
+    else ''
+  callinTypes: -> [
+    callin_types.ANSWER,
+    callin_types.INTERACTION_REQUEST,
+    callin_types.MESSAGE_TO_HQ,
+    callin_types.EXPECTED_CALLBACK]
 
 Template.puzzle_callin_modal.events
+  'change input[name="callin_type"]': (event, template) ->
+    template.type.set event.currentTarget.value
   "click .bb-callin-submit, submit form": (event, template) ->
     event.preventDefault() # don't reload page
     answer = template.$('.bb-callin-answer').val()
@@ -150,6 +180,7 @@ Template.puzzle_callin_modal.events
     args =
       target: Session.get 'id'
       answer: answer
+      callin_type: template.type.get()
     if template.$('input:checked[value="provided"]').val() is 'provided'
       args.provided = true
     if template.$('input:checked[value="backsolve"]').val() is 'backsolve'

@@ -2,6 +2,7 @@
 
 import { nickEmail } from './imports/nickEmail.coffee'
 import { reactiveLocalStorage } from './imports/storage.coffee'
+import * as callin_types from '/lib/imports/callin_types.coffee'
 
 model = share.model # import
 settings = share.settings # import
@@ -82,17 +83,28 @@ Template.callin_row.helpers
     for wrong in @puzzle?.incorrectAnswers
       return true if wrong.answer is @answer
     return false
+  callinTypeIs: (type) -> @callin_type is type
+  allowsResponse: -> @callin_type isnt callin_types.ANSWER
+  allowsIncorrect: -> @callin_type isnt callin_types.EXPECTED_CALLBACK
   nickEmail: -> nickEmail @
 
 Template.callin_row.events
   "click .bb-callin-correct": (event, template) ->
-     Meteor.call 'correctCallIn', @_id
+    response = template.find("input.response")?.value
+    if response? and response isnt ''
+      Meteor.call 'correctCallIn', @_id, response
+    else
+      Meteor.call 'correctCallIn', @_id
 
   "click .bb-callin-incorrect": (event, template) ->
-     Meteor.call 'incorrectCallIn', @_id
+    response = template.find("input.response")?.value
+    if response? and response isnt ''
+      Meteor.call 'incorrectCallIn', @_id, response
+    else
+      Meteor.call 'incorrectCallIn', @_id
 
   "click .bb-callin-cancel": (event, template) ->
-     Meteor.call 'cancelCallIn', id: @_id
+    Meteor.call 'cancelCallIn', id: @_id
 
   "change .bb-submitted-to-hq": (event, template) ->
     checked = !!event.currentTarget.checked

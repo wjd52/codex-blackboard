@@ -1,10 +1,11 @@
 'use strict'
 
 import canonical from './imports/canonical.coffee'
-import { ArrayMembers, ArrayWithLength, NumberInRange, NonEmptyString, IdOrObject, ObjectWith } from './imports/match.coffee'
+import { ArrayMembers, ArrayWithLength, EqualsString, NumberInRange, NonEmptyString, IdOrObject, ObjectWith } from './imports/match.coffee'
 import { IsMechanic } from './imports/mechanics.coffee'
 import { getTag, isStuck, canonicalTags } from './imports/tags.coffee'
 import { RoundUrlPrefix, PuzzleUrlPrefix } from './imports/settings.coffee'
+import * as callin_types from './imports/callin_types.coffee'
 if Meteor.isServer
   {newMessage, ensureDawnOfTime} = require('/server/imports/newMessage.coffee')
 else
@@ -114,7 +115,10 @@ if Meteor.isServer
 
 # CallIns are:
 #   _id: mongodb id
+#   callin_type: type of callin.
+#      Must be one of the constants from imports/callin_types.coffee.
 #   target: _id of puzzle
+#   target_type: type of target. Must be 'puzzles'.
 #   answer: string (proposed answer to call in)
 #   created: timestamp
 #   created_by: canon of Nick
@@ -620,46 +624,80 @@ doc_id_to_link = (id) ->
 
     newCallIn: (args) ->
       check @userId, NonEmptyString
-      check args, ObjectWith
-        target: IdOrObject
-        answer: NonEmptyString
-        backsolve: Match.Optional(Boolean)
-        provided: Match.Optional(Boolean)
       return if this.isSimulation # otherwise we trigger callin sound twice
+      args.callin_type ?= callin_types.ANSWER
+      args.target_type ?= 'puzzles'
+      puzzle = null
+      body = -> ''
+      if args.callin_type is callin_types.ANSWER
+        check args,
+          target: IdOrObject
+          target_type: EqualsString 'puzzles'
+          answer: NonEmptyString
+          callin_type: EqualsString callin_types.ANSWER
+          backsolve: Match.Optional Boolean
+          provided: Match.Optional Boolean
+          suppressRoom: Match.Optional String
+        puzzle = Puzzles.findOne(args.target)
+        throw new Meteor.Error(404, "bad target") unless puzzle?
+        name = puzzle.name
+        backsolve = if args.backsolve then " [backsolved]" else ''
+        provided = if args.provided then " [provided]" else ''
+        body = (opts) ->
+          "is requesting a call-in for #{args.answer.toUpperCase()}" + \
+          (if opts?.specifyPuzzle then " (#{name})" else "") + provided + backsolve
+      else
+        check args,
+          target: IdOrObject
+          target_type: EqualsString 'puzzles'
+          answer: NonEmptyString
+          callin_type: Match.OneOf(
+            EqualsString(callin_types.INTERACTION_REQUEST),
+            EqualsString(callin_types.MESSAGE_TO_HQ),
+            EqualsString(callin_types.EXPECTED_CALLBACK))
+          suppressRoom: Match.Optional String
+        puzzle = Puzzles.findOne(args.target)
+        throw new Meteor.Error(404, "bad target") unless puzzle?
+        name = puzzle.name
+        description = switch args.callin_type
+          when callin_types.INTERACTION_REQUEST
+            'is requesting the interaction'
+          when callin_types.MESSAGE_TO_HQ
+            'wants to tell HQ'
+          when callin_types.EXPECTED_CALLBACK
+            'expects HQ to call back for'
+        body = (opts) ->
+          "#{description}, \"#{args.answer.toUpperCase()}\"" + \
+          (if opts?.specifyPuzzle then " (#{name})" else "")
       id = args.target._id or args.target
-      puzzle = Puzzles.findOne(args.target)
-      throw new Meteor.Error(404, "bad target") unless puzzle?
-      name = puzzle.name
-      backsolve = if args.backsolve then " [backsolved]" else ''
-      provided = if args.provided then " [provided]" else ''
-      newObject "callins", {name:"#{name}:#{args.answer}", who:@userId},
+      newObject "callins", {name:"#{args.callin_type}:#{name}:#{args.answer}", who:@userId},
+        callin_type: args.callin_type
         target: id
+        target_type: args.target_type
         answer: args.answer
         who: @userId
         submitted_to_hq: false
         backsolve: !!args.backsolve
         provided: !!args.provided
       , {suppressLog:true}
-      body = (opts) ->
-        "is requesting a call-in for #{args.answer.toUpperCase()}" + \
-        (if opts?.specifyPuzzle then " (#{name})" else "") + provided + backsolve
       msg = action: true
       # send to the general chat
       msg.body = body(specifyPuzzle: true)
       unless args?.suppressRoom is "general/0"
         Meteor.call 'newMessage', msg
-      # send to the puzzle chat
-      msg.body = body(specifyPuzzle: false)
-      msg.room_name = "puzzles/#{id}"
-      unless args?.suppressRoom is msg.room_name
-        Meteor.call 'newMessage', msg
-      # send to the metapuzzle chat
-      puzzle.feedsInto.forEach (meta) ->
-        msg.body = body(specifyPuzzle: true)
-        msg.room_name = "puzzles/#{meta}"
+      if puzzle?
+        # send to the puzzle chat
+        msg.body = body(specifyPuzzle: false)
+        msg.room_name = "puzzles/#{id}"
         unless args?.suppressRoom is msg.room_name
-          Meteor.call "newMessage", msg
-      oplog "New answer #{args.answer} submitted for", 'puzzles', id, \
+          Meteor.call 'newMessage', msg
+        # send to the metapuzzle chat
+        puzzle.feedsInto.forEach (meta) ->
+          msg.body = body(specifyPuzzle: true)
+          msg.room_name = "puzzles/#{meta}"
+          unless args?.suppressRoom is msg.room_name
+            Meteor.call "newMessage", msg
+      oplog "New #{args.callin_type} #{args.answer} submitted for", args.target_type, id, \
           @userId, 'callins'
 
     newQuip: (text) ->
@@ -697,60 +735,109 @@ doc_id_to_link = (id) ->
       check @userId, NonEmptyString
       deleteObject "quips", {id, who: @userId}
 
-    correctCallIn: (id) ->
+    # Response is forbibben for answers and optional for other callin types.
+    correctCallIn: (id, response) ->
       check @userId, NonEmptyString
       check id, NonEmptyString
       callin = CallIns.findOne id
       throw new Meteor.Error(400, "bad callin") unless callin
-      # call-in is cancelled as a side-effect of setAnswer
-      Meteor.call "setAnswer",
-        target: callin.target
-        answer: callin.answer
-        backsolve: callin.backsolve
-        provided: callin.provided
-      backsolve = if callin.backsolve then "[backsolved] " else ''
-      provided = if callin.provided then "[provided] " else ''
-      puzzle = Puzzles.findOne(callin.target)
-      return unless puzzle?
       msg =
-        body: "reports that #{provided}#{backsolve}#{callin.answer.toUpperCase()} is CORRECT!"
+        room_name: "#{callin.target_type}/#{callin.target}"
         action: true
-        room_name: "puzzles/#{callin.target}"
+      puzzle = Puzzles.findOne(callin.target) if callin.target_type is 'puzzles'
+      if callin.callin_type is callin_types.ANSWER
+        check response, undefined
+        # call-in is cancelled as a side-effect of setAnswer
+        Meteor.call "setAnswer",
+          target: callin.target
+          answer: callin.answer
+          backsolve: callin.backsolve
+          provided: callin.provided
+        backsolve = if callin.backsolve then "[backsolved] " else ''
+        provided = if callin.provided then "[provided] " else ''
+        return unless puzzle?
+        Object.assign msg,
+          body: "reports that #{provided}#{backsolve}#{callin.answer.toUpperCase()} is CORRECT!"
+      else
+        check response, Match.Optional String
+        extra = if response?
+          " with response \"#{response}\""
+        else
+          ''
+        type_text = if callin.callin_type is callin_types.MESSAGE_TO_HQ
+          'message to HQ'
+        else callin.callin_type
+        verb = if callin.callin_type is callin_types.EXPECTED_CALLBACK
+          'RECEIVED'
+        else 'ACCEPTED'
+
+        Object.assign msg,
+          body: "reports that the #{type_text} \"#{callin.answer}\" was #{verb}#{extra}!"
+        Meteor.call 'cancelCallIn',
+          id: id
+          suppressLog: true
 
       # one message to the puzzle chat
       Meteor.call 'newMessage', msg
 
       # one message to the general chat
       delete msg.room_name
-      msg.body += " (#{puzzle.name})" if puzzle.name?
+      msg.body += " (#{puzzle.name})" if puzzle?.name?
       Meteor.call 'newMessage', msg
 
-      # one message to the each metapuzzle's chat
-      puzzle.feedsInto.forEach (meta) ->
-        msg.room_name = "puzzles/#{meta}"
-        Meteor.call 'newMessage', msg
+      if callin.callin_type is callin_types.ANSWER
+        # one message to the each metapuzzle's chat
+        puzzle.feedsInto.forEach (meta) ->
+          msg.room_name = "puzzles/#{meta}"
+          Meteor.call 'newMessage', msg
 
-    incorrectCallIn: (id) ->
+    # Response is optional for interaction requests and forbibben for answers.
+    incorrectCallIn: (id, response) ->
       check @userId, NonEmptyString
       check id, NonEmptyString
       callin = CallIns.findOne id
       throw new Meteor.Error(400, "bad callin") unless callin
-      # call-in is cancelled as a side-effect of addIncorrectAnswer
-      Meteor.call "addIncorrectAnswer",
-        target: callin.target
-        answer: callin.answer
-        backsolve: callin.backsolve
-        provided: callin.provided
-      puzzle = Puzzles.findOne(callin.target)
-      return unless puzzle?
-      name = puzzle.name
       msg =
-        body: "sadly relays that #{callin.answer.toUpperCase()} is INCORRECT."
+        room_name: "#{callin.target_type}/#{callin.target}"
         action: true
-        room_name: "puzzles/#{callin.target}"
+      puzzle = Puzzles.findOne(callin.target) if callin.target_type is 'puzzles'
+      if callin.callin_type is callin_types.ANSWER
+        check response, undefined
+        # call-in is cancelled as a side-effect of addIncorrectAnswer
+        Meteor.call "addIncorrectAnswer",
+          target: callin.target
+          answer: callin.answer
+          backsolve: callin.backsolve
+          provided: callin.provided
+        return unless puzzle?
+        Object.assign msg,
+          body: "sadly relays that #{callin.answer.toUpperCase()} is INCORRECT."
+      else if callin.callin_type is callin_types.EXPECTED_CALLBACK
+        throw new Meteor.Error(400, 'expected callback can\'t be incorrect')
+      else
+        check response, Match.Optional String
+        extra = if response?
+          " with response \"#{response}\""
+        else
+          ''
+        type_text = if callin.callin_type is callin_types.MESSAGE_TO_HQ
+          'message to HQ'
+        else callin.callin_type
+
+        Object.assign msg,
+          body: "sadly relays that the #{type_text} \"#{callin.answer}\" was REJECTED#{extra}."
+        Meteor.call 'cancelCallIn',
+          id: id
+          suppressLog: true
+
+      # one message to the puzzle chat
       Meteor.call 'newMessage', msg
+
+      return unless puzzle?
+
+      # one message to the general chat
       delete msg.room_name
-      msg.body += " (#{name})" if name?
+      msg.body += " (#{puzzle.name})" if puzzle.name?
       Meteor.call 'newMessage', msg
       puzzle.feedsInto.forEach (meta) ->
         msg.room_name = "puzzles/#{meta}"
