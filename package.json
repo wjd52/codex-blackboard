@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@babel/runtime": "^7.7.7",
+    "@slack/rtm-api": "^5.0.3",
     "coffeescript": "^2.4.1",
     "css-color-names": "0.0.4",
     "delay": "^4.3.0",
