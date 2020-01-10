@@ -66,38 +66,4 @@ do ->
     # also run batch on removed: batch size might not have been big enough
     removed: (id) -> maybeRunBatch()
 
-# Migrate messages out of OldMessages and create dawns of time.
-# (i.e. ensure any chat room with messages has a sentinel message predating any
-# other message so you know when you have all of them.)
-# TODO by 2020 hunt: remove, as we won't need backward compatibility.
-Meteor.startup ->
-  old = new Mongo.Collection 'oldmessages'
-  count = 0
-  old.find().forEach (doc) ->
-    model.Messages.insert doc
-    old.remove _id: doc._id
-    count++
-  console.log "Migrated #{count} old messages" if count > 0
-  # TODO: if pages exist, create dawns of time
-  pages = new Mongo.Collection 'pages'
-  if pages.findOne()?
-    rawColl = model.Messages.rawCollection()
-    agg = Meteor.wrapAsync rawColl.aggregate, rawColl
-    count = 0
-    aggcsr = agg([$group: {_id: '$room_name', timestamp: $min: '$timestamp'}])
-    toArray = Meteor.wrapAsync aggcsr.toArray, aggcsr
-    toArray().forEach (room) ->
-      dawn = model.Messages.findOne(_id: room._id)
-      return if dawn? and dawn.timestamp <= room.timestamp
-      model.Messages.upsert room._id,
-        timestamp: room.timestamp - 1
-        dawn_of_time: true
-        system: true
-        bot_ignore: true
-        room_name: room._id
-      count++
-    console.log "Created dawn of time for #{count} rooms" if count > 0
-    deleted = pages.remove({})
-    console.log "Deleted #{deleted} pages" if deleted > 0
-
 presence = watchPresence()
