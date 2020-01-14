@@ -166,6 +166,9 @@ Polls = BBCollection.polls = new Mongo.Collection "polls"
 #   services: map of provider-specific stuff; hidden on client
 #   favorite_mechanics: list of favorite mechanics in canonical form.
 #     Only served to yourself.
+#   slack_id (optional): Id in the mirrored slack workspace
+#     Only set if you spoke or were mentioned in the mirrored slack channel
+#     Only set on the server.
 if Meteor.isServer
   Meteor.users._ensureIndex {priv_located_order: 1},
     partialFilterExpression:
@@ -173,6 +176,9 @@ if Meteor.isServer
   # We don't push the index to the client, so it's okay to have it update
   # frequently.
   Meteor.users._ensureIndex {priv_located_at: '2dsphere'}, {}
+  Meteor.users._ensureIndex { slack_id: 1},
+    partialFilterExpression:
+      slack_id: { $exists: true }
 
 # Messages
 #   body: string

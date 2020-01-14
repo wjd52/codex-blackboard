@@ -50,6 +50,11 @@ export newMessage = (newMsg) ->
       quote_id_str: Match.Optional NonEmptyString
       # Twitter handle of tweeter of quoted tweet, if this was a quote-retweet
       quote_nick: Match.Optional NonEmptyString
+    slack: Match.Optional
+      # timestamp of event. String contains a floating point number
+      timestamp: NonEmptyString
+      # true if this message originated in Slack
+      from_slack: Match.Optional Boolean
   # translate emojis!
   if newMsg.bodyIsHtml
     newMsg.body = sanitize newMsg.body, params

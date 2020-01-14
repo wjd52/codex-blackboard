@@ -10,5 +10,5 @@ return unless access_token?
 channel = settings.channel ? process.env.SLACK_CHANNEL ? '#general'
 Meteor.startup ->
   rtm = new RTMClient access_token
-  rtm.start()
-  Promise.await install rtm, channel
+  install rtm, channel
+  Promise.await rtm.start()
