@@ -45,12 +45,15 @@ export default install = (rtm, channel) ->
     return if message.hidden
     
     usersNeeded = new Set [message.user]
+    channelsNeeded = new Set
     richText = message.blocks?.find (block) -> block.type is 'rich_text'
     if richText?
       for element1 in richText.elements
         for element2 in element1.elements
           usersNeeded.add element2.user_id if element2.type is 'user'
+          channelsNeeded.add element2.channel_id if element2.type is 'channel'
     nicks = new Map
+    channels = new Map
     # First lookup in Users table; only go to Slack if they're not already there.
     Meteor.users.find(slack_id: $in: Array.from usersNeeded).forEach (user) ->
       nicks.set user.slack_id,
@@ -58,29 +61,32 @@ export default install = (rtm, channel) ->
         nickname: user.nickname
       usersNeeded.delete user.slack_id
     # Then get everything that's left from slack.
-    userPromises = for user from usersNeeded
-      rtm.webClient.users.info {user}
-    users = Promise.await Promise.all userPromises
-    # Could perhaps improve parallelism by doing the insert in a promise
-    # attached to the info() call.
-    for user in users
-      continue unless user.ok
-      nicks.set user.user.id,
-        canon: canonical(user.user.name)
-        nickname: user.user.name
-      doc = nickname: user.user.name
-      if user.user.name isnt user.user.real_name
-        doc.real_name = user.user.real_name
-      if user.user.profile?.email?
-        doc.gravatar = user.user.profile.email
-      Meteor.users.upsert canonical(user.user.name),
-        $set: slack_id: user.user.id
-        $setOnInsert: doc
+    promises = []
+    usersNeeded.forEach (user) ->
+      promises.push do ->
+        res = await rtm.webClient.users.info {user}
+        return unless res.ok
+        nicks.set res.user.id,
+          canon: canonical(res.user.name)
+          nickname: res.user.name
+        doc = nickname: res.user.name
+        if res.user.name isnt res.user.real_name
+          doc.real_name = res.user.real_name
+        if res.user.profile?.email?
+          doc.gravatar = res.user.profile.email
+        Meteor.users.upsert canonical(res.user.name),
+          $set: slack_id: res.user.id
+          $setOnInsert: doc
+    channelsNeeded.forEach (channel) ->
+      promises.push do ->
+        res = await rtm.webClient.conversations.info {channel}
+        return unless res.ok
+        channels.set channel, res.channel.name
+    Promise.await Promise.all promises
     msg =
       body: ''
       nick: nicks.get(message.user).canon
       room_name: 'general/0'
-      bot_ignore: true
       slack:
         timestamp: message.ts
         from_slack: true
@@ -94,6 +100,12 @@ export default install = (rtm, channel) ->
               msg.body += nicks.get(element2.user_id).nickname
             when 'broadcast'
               msg.body += "@#{element2.range}"
+            when 'emoji'
+              msg.body += ":#{element2.name}:"
+            when 'channel'
+              msg.body += "##{channels.get element2.channel_id}"
+            else
+              console.log element2
     else if message.subtype is 'me_message'
       msg.action = true
       text = message.text.replace /<!([a-z]*)>/gi, '@$1'

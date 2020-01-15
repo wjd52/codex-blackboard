@@ -25,6 +25,7 @@ describe 'slack', ->
   fakeRtm = null
   rtmMock = null
   stubUsers = null
+  stubConversations = null
 
   beforeEach ->
     fakeRtm = new EventEmitter
@@ -32,6 +33,7 @@ describe 'slack', ->
     rtmMock = sinon.mock fakeRtm
     fakeRtm.webClient = new WebClient
     stubUsers = sinon.stub fakeRtm.webClient.users
+    stubConversations = sinon.stub fakeRtm.webClient.conversations
 
   afterEach ->
     sinon.verifyAndRestore()
@@ -191,6 +193,11 @@ describe 'slack', ->
           real_name: 'See Jay Bee'
           profile:
             email: 'cjb@github.com'
+      stubConversations.info.rejects().withArgs(channel: 'C999999').resolves
+        ok: true
+        channel:
+          id: 'C999999'
+          name: 'chill'
       fakeRtm.emit 'message',
         client_msg_id: '6c09236b-9dea-44b7-8421-b3a572e4f64c'
         suppress_notification: false
@@ -205,7 +212,8 @@ describe 'slack', ->
             elements: [
               { type: 'text', text: 'yellow ' },
               { type: 'user', user_id: 'U123987' },
-              { type: 'text', text: ' yellow' }, ] } ] } ]
+              { type: 'text', text: ' yellow ' }, 
+              { type: 'channel', channel_id: 'C999999'} ] } ] } ]
         thread_ts: '1578899128.005200'
         user_team: 'TS1T1DGV9'
         source_team: 'TS1T1DGV9'
@@ -225,7 +233,7 @@ describe 'slack', ->
         real_name: 'See Jay Bee'
         gravatar: 'cjb@github.com'
       message = waitForDocument share.model.Messages,
-        body: 'yellow cjb yellow'
+        body: 'yellow cjb yellow #chill'
         room_name: 'general/0'
       ,
         nick: 'torgen'
