@@ -271,6 +271,8 @@ describe 'slack', ->
               { type: 'text', text: 'yellow ' },
               { type: 'user', user_id: 'U123987' },
               { type: 'text', text: ' yellow ' },
+              { type: 'link', text: 'www.slack.com', url: 'http://www.slack.com'}
+              { type: 'text', text: ' ' },
               { type: 'broadcast', range: 'channel' }, ] } ] } ]
         thread_ts: '1578899128.005200'
         user_team: 'TS1T1DGV9'
@@ -279,7 +281,7 @@ describe 'slack', ->
         event_ts: '1578899141.005500'
         ts: '1578899141.005500'
       waitForDocument share.model.Messages,
-        body: 'yellow CJB yellow @channel'
+        body: 'yellow CJB yellow http://www.slack.com @channel'
         room_name: 'general/0'
       ,
         nick: 'torgen'

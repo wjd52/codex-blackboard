@@ -104,6 +104,8 @@ export default install = (rtm, channel) ->
               msg.body += ":#{element2.name}:"
             when 'channel'
               msg.body += "##{channels.get element2.channel_id}"
+            when 'link'
+              msg.body += element2.url
             else
               console.log element2
     else if message.subtype is 'me_message'
