@@ -62,6 +62,7 @@ describe 'deleteAnswer', ->
       touched_by: 'cjb'
       solved: null
       solved_by: null
+      confirmed_by: null
       tags: status: {name: 'Status', value: 'stuck', touched: 2, touched_by: 'torgen'}
     oplogs = model.Messages.find(room_name: 'oplog/0').fetch()
     chai.assert.equal oplogs.length, 1
@@ -88,7 +89,8 @@ describe 'deleteAnswer', ->
       touched: 2
       touched_by: 'torgen'
       solved: 2
-      solved_by: 'torgen'
+      solved_by: 'cjb'
+      confirmed_by: 'torgen'
       tags:
         answer: {name: 'Answer', value: 'foo', touched: 2, touched_by: 'torgen'}
         temperature: {name: 'Temperature', value: '12', touched: 2, touched_by: 'torgen'}
@@ -104,6 +106,7 @@ describe 'deleteAnswer', ->
       touched_by: 'cjb'
       solved: null
       solved_by: null
+      confirmed_by: null
       tags: temperature: {name: 'Temperature', value: '12', touched: 2, touched_by: 'torgen'}
     oplogs = model.Messages.find(room_name: 'oplog/0').fetch()
     chai.assert.equal oplogs.length, 1
@@ -130,7 +133,8 @@ describe 'deleteAnswer', ->
       touched: 2
       touched_by: 'torgen'
       solved: 2
-      solved_by: 'torgen'
+      solved_by: 'cjb'
+      confirmed_by: 'torgen'
       tags:
         answer: {name: 'Answer', value: 'foo', touched: 2, touched_by: 'torgen'}
         backsolve: {name: 'Backsolve', value: 'yes', touched: 2, touched_by: 'torgen'}
@@ -147,6 +151,7 @@ describe 'deleteAnswer', ->
       touched_by: 'cjb'
       solved: null
       solved_by: null
+      confirmed_by: null
       tags: {}
     oplogs = model.Messages.find(room_name: 'oplog/0').fetch()
     chai.assert.equal oplogs.length, 1

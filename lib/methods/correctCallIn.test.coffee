@@ -37,6 +37,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         feedsInto: []
       callin = model.CallIns.insert
@@ -71,7 +72,8 @@ describe 'correctCallIn', ->
           touched: 7
           touched_by: 'cjb'
           solved: 7
-          solved_by: 'cjb'
+          solved_by: 'torgen'
+          confirmed_by: 'cjb'
           tags: answer:
             name: 'Answer'
             value: 'precipitate'
@@ -119,6 +121,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         incorrectAnswers: []
         feedsInto: []
@@ -144,6 +147,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         feedsInto: []
       callin = model.CallIns.insert
@@ -175,6 +179,7 @@ describe 'correctCallIn', ->
             touched_by: 'cscott'
             solved: null
             solved_by: null
+            confirmed_by: null
             tags: {}
         
         it 'removes callin', ->
@@ -214,6 +219,7 @@ describe 'correctCallIn', ->
           touched_by: 'cscott'
           solved: null
           solved_by: null
+          confirmed_by: null
           tags: {}
       
       it 'removes callin', ->
@@ -254,6 +260,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         incorrectAnswers: []
         feedsInto: []
@@ -274,6 +281,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         feedsInto: []
       callin = model.CallIns.insert
@@ -305,6 +313,7 @@ describe 'correctCallIn', ->
             touched_by: 'cscott'
             solved: null
             solved_by: null
+            confirmed_by: null
             tags: {}
         
         it 'removes callin', ->
@@ -344,6 +353,7 @@ describe 'correctCallIn', ->
           touched_by: 'cscott'
           solved: null
           solved_by: null
+          confirmed_by: null
           tags: {}
       
       it 'removes callin', ->
@@ -384,6 +394,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         incorrectAnswers: []
         feedsInto: []
@@ -404,6 +415,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         feedsInto: []
       callin = model.CallIns.insert
@@ -435,6 +447,7 @@ describe 'correctCallIn', ->
             touched_by: 'cscott'
             solved: null
             solved_by: null
+            confirmed_by: null
             tags: {}
         
         it 'removes callin', ->
@@ -475,6 +488,7 @@ describe 'correctCallIn', ->
           touched_by: 'cscott'
           solved: null
           solved_by: null
+          confirmed_by: null
           tags: {}
       
       it 'removes callin', ->
@@ -516,6 +530,7 @@ describe 'correctCallIn', ->
         touched_by: 'cscott'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
         incorrectAnswers: []
         feedsInto: []

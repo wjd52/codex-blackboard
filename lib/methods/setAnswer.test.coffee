@@ -37,6 +37,7 @@ describe 'setAnswer', ->
         touched_by: 'torgen'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: technology: {name: 'Technology', value: 'Pottery', touched: 2, touched_by: 'torgen'}
     it 'fails without login', ->
       chai.assert.throws ->
@@ -66,6 +67,7 @@ describe 'setAnswer', ->
           touched_by: 'cjb'
           solved: 7
           solved_by: 'cjb'
+          confirmed_by: 'cjb'
           tags:
             answer: {name: 'Answer', value: 'bar', touched: 7, touched_by: 'cjb'}
             technology: {name: 'Technology', value: 'Pottery', touched: 2, touched_by: 'torgen'}
@@ -94,7 +96,8 @@ describe 'setAnswer', ->
         touched: 2
         touched_by: 'torgen'
         solved: 2
-        solved_by: 'torgen'
+        solved_by: 'cscott'
+        confirmed_by: 'torgen'
         tags:
           answer: {name: 'Answer', value: 'qux', touched: 2, touched_by: 'torgen'}
           technology:{name: 'Technology', value: 'Pottery', touched: 2, touched_by: 'torgen'}
@@ -116,6 +119,7 @@ describe 'setAnswer', ->
         touched_by: 'cjb'
         solved: 7
         solved_by: 'cjb'
+        confirmed_by: 'cjb'
         tags:
           answer: {name: 'Answer', value: 'bar', touched: 7, touched_by: 'cjb'}
           technology: {name: 'Technology', value: 'Pottery', touched: 2, touched_by: 'torgen'}
@@ -145,7 +149,8 @@ describe 'setAnswer', ->
         touched: 2
         touched_by: 'torgen'
         solved: 2
-        solved_by: 'torgen'
+        solved_by: 'cscott'
+        confirmed_by: 'torgen'
         tags:
           answer: {name: 'Answer', value: 'bar', touched: 2, touched_by: 'torgen'}
           technology: {name: 'Technology', value: 'Pottery', touched: 2, touched_by: 'torgen'}
@@ -166,7 +171,8 @@ describe 'setAnswer', ->
         touched: 2
         touched_by: 'torgen'
         solved: 2
-        solved_by: 'torgen'
+        solved_by: 'cscott'
+        confirmed_by: 'torgen'
         tags:
           answer: {name: 'Answer', value: 'bar', touched: 2, touched_by: 'torgen'}
           technology: {name: 'Technology', value: 'Pottery', touched: 2, touched_by: 'torgen'}
@@ -184,6 +190,7 @@ describe 'setAnswer', ->
       touched_by: 'torgen'
       solved: null
       solved_by: null
+      confirmed_by: null
       tags: status: {name: 'Status', value: 'stuck', touched: 2, touched_by: 'torgen'}
     chai.assert.isTrue callAs 'setAnswer', 'cjb',
       target: id
@@ -210,11 +217,13 @@ describe 'setAnswer', ->
         touched_by: 'torgen'
         solved: null
         solved_by: null
+        confirmed_by: null
         tags: {}
       cid1 = model.CallIns.insert
         target: id
         name: 'Foo'
         answer: 'bar'
+        callin_type: 'answer'
         created: 5
         created_by: 'codexbot'
         submitted_to_hq: true
@@ -224,6 +233,7 @@ describe 'setAnswer', ->
         target: id
         name: 'Foo'
         answer: 'qux'
+        callin_type: 'answer'
         created: 5
         created_by: 'codexbot'
         submitted_to_hq: false
@@ -239,5 +249,11 @@ describe 'setAnswer', ->
     it 'doesn\'t oplog for callins', ->
       chai.assert.lengthOf model.Messages.find({room_name: 'oplog/0', type: 'callins'}).fetch(), 0
 
-    it "oplogs for puzzle", ->
+    it 'oplogs for puzzle', ->
       chai.assert.lengthOf model.Messages.find({room_name: 'oplog/0', type: 'puzzles', id: id}).fetch(), 2
+
+    it 'sets solved_by correctly', ->
+      chai.assert.deepInclude model.Puzzles.findOne(id),
+        solved: 7
+        solved_by: 'codexbot'
+        confirmed_by: 'cjb'

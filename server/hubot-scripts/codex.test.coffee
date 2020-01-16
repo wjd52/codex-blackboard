@@ -73,6 +73,7 @@ describe 'codex hubot script', ->
         touched: 7
         touched_by: 'torgen'
         solved: 7
+        confirmed_by: 'torgen'
         tags: answer:
           name: 'Answer'
           value: 'linear abeja'
@@ -88,7 +89,8 @@ describe 'codex hubot script', ->
         touched: 3
         touched_by: 'cjb'
         solved: 3
-        solved_by: 'cjb'
+        solved_by: 'cscott'
+        confirmed_by: 'cjb'
         tags:
           answer:
             name: 'Answer'
@@ -100,7 +102,7 @@ describe 'codex hubot script', ->
         room_name: 'puzzles/12345abcde'
         timestamp: Date.now()
         body: 'bot the answer to latino alphabet is linear abeja'
-      waitForDocument model.Puzzles, {_id: '12345abcde', solved_by: 'torgen'},
+      waitForDocument model.Puzzles, {_id: '12345abcde', solved_by: 'torgen', confirmed_by: 'torgen'},
         touched: 7
         touched_by: 'torgen'
         solved: 7
@@ -117,7 +119,8 @@ describe 'codex hubot script', ->
         canon: 'latino_alphabet'
         feedsInto: []
         solved: 3
-        solved_by: 'cjb'
+        solved_by: 'cscott'
+        confirmed_by: 'cjb'
         touched: 3
         touched_by: 'cjb'
         tags:
@@ -139,7 +142,8 @@ describe 'codex hubot script', ->
         touched: 3
         touched_by: 'cjb'
         solved: 3
-        solved_by: 'cjb'
+        solved_by: 'cscott'
+        confirmed_by: 'cjb'
         tags: answer:
           name: 'Answer'
           value: 'linear abeja'

@@ -1201,8 +1201,12 @@ doc_id_to_link = (id) ->
       updateDoc = $set:
         solved: now
         solved_by: @userId
+        confirmed_by: @userId
         touched: now
         touched_by: @userId
+      c = CallIns.findOne(target: id, callin_type: callin_types.ANSWER, answer: args.answer)
+      if c?
+        updateDoc.$set.solved_by = c.created_by
       setTagInternal updateDoc,
         name: 'Answer'
         value: args.answer
@@ -1276,6 +1280,7 @@ doc_id_to_link = (id) ->
       updateDoc = $set:
         solved: null
         solved_by: null
+        confirmed_by: null
         touched: now
         touched_by: @userId
       deleteTagInternal updateDoc, 'answer'
