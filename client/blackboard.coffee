@@ -214,9 +214,7 @@ Template.blackboard.events
     href = event.target.getAttribute 'href'
     if href.match /^#/
       event.preventDefault()
-      $.scrollTo href,
-        duration: 400
-        offset: { top: -110 }
+      $(href).get(0)?.scrollIntoView block: 'center', behavior: 'smooth'
 
 Template.nick_presence.helpers
   email: -> nickEmail @nick

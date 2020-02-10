@@ -215,9 +215,8 @@ scrollAfter = (x) ->
   x()
   if nearTop?
     Tracker.afterFlush ->
-      $.scrollTo "##{nearTop.id}",
-        duration: 100
-        offset: {top: -offset}
+      $("##{nearTop.id}").get(0).scrollIntoView
+        behavior: 'smooth'
 
 # Router
 BlackboardRouter = Backbone.Router.extend
