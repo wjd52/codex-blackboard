@@ -108,6 +108,10 @@
       {{#if puzzle.doc}}
         <a href="{{doc_link puzzle.doc}}" target="_blank" title="Open document in new window"><i class='fas fa-external-link-alt'></i></a>
       {{/if}}
+    {{else if currentViewIs "jam"}}
+      {{#if puzzle.jam}}
+        <a href="{{jam_link puzzle.doc}}" target="_blank" title="Open jam in new window"><i class='fas fa-external-link-alt'></i></a>
+      {{/if}}
     {{else if currentViewIs "puzzle"}}
       {{#if puzzle.link}}
         <a href="{{puzzle.link}}" target="_blank" title="Open puzzle in new window"><i class='fas fa-external-link-alt'></i></a>
@@ -132,6 +136,11 @@
       <iframe class="bb-spreadsheet-frame" frameborder='0' src='{{doc_link puzzle.doc}}?widget=true&chrome=false&rm=embedded'
               style="{{#unless currentViewIs "doc"}}display:none{{/unless}}"></iframe>
     {{/if}}
+  {{/if}}
+  {{#if puzzle.jam}}
+    {{! hide iframe when not current view for faster tab change }}
+    <iframe class="bb-spreadsheet-frame" frameborder='0' src='{{jam_link puzzle.jam}}?widget=true&chrome=false&rm=embedded'
+            style="{{#unless currentViewIs "jam"}}display:none{{/unless}}"></iframe>
   {{/if}}
   {{#if embeddable puzzle.link}}
     {{! hide iframe when not current view for faster tab change }}

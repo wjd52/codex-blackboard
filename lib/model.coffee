@@ -90,6 +90,7 @@ if Meteor.isServer
 #   drive: optional google drive folder id
 #   spreadsheet: optional google spreadsheet id
 #   doc: optional google doc id
+#   jam: optional google Jamboard id
 #   favorites: object whose keys are userids of users who favorited this
 #              puzzle. Values are true. On the client, either empty or contains
 #              only you.
@@ -260,6 +261,8 @@ spread_id_to_link = (id) ->
   "https://docs.google.com/spreadsheets/d/#{id}/edit"
 doc_id_to_link = (id) ->
   "https://docs.google.com/document/d/#{id}/edit"
+jam_id_to_link = (id) ->
+  "https://jamboard.google.com/d/#{id}/viewer"
 
 (->
   # private helpers, not exported
@@ -387,15 +390,17 @@ doc_id_to_link = (id) ->
       drive: res.id
       spreadsheet: res.spreadId
       doc: res.docId
+      jam: res.jamId
     }
 
-  renameDriveFolder = (new_name, drive, spreadsheet, doc) ->
+  renameDriveFolder = (new_name, drive, spreadsheet, doc, jam) ->
     check new_name, NonEmptyString
     check drive, NonEmptyString
     check spreadsheet, Match.Optional(NonEmptyString)
     check doc, Match.Optional(NonEmptyString)
+    check jam, Match.Optional(NonEmptyString)
     return unless Meteor.isServer
-    share.drive.renamePuzzle(new_name, drive, spreadsheet, doc)
+    share.drive.renamePuzzle(new_name, drive, spreadsheet, doc, jam)
 
   deleteDriveFolder = (drive) ->
     check drive, NonEmptyString
@@ -477,6 +482,7 @@ doc_id_to_link = (id) ->
         drive: args.drive or null
         spreadsheet: args.spreadsheet or null
         doc: args.doc or null
+        jam: args.jam or null
         link: args.link or link
         feedsInto: feedsInto
       if args.puzzles?
@@ -518,9 +524,10 @@ doc_id_to_link = (id) ->
       drive = p?.drive
       spreadsheet = p?.spreadsheet if drive?
       doc = p?.doc if drive?
+      jam = p?.jam if drive?
       result = renameObject "puzzles", {args..., who: @userId}
       # rename google drive folder
-      renameDriveFolder args.name, drive, spreadsheet, doc if result and drive?
+      renameDriveFolder args.name, drive, spreadsheet, doc, jam if result and drive?
       return result
     deletePuzzle: (pid) ->
       check @userId, NonEmptyString
@@ -1405,4 +1412,5 @@ share.model =
   drive_id_to_link: drive_id_to_link
   spread_id_to_link: spread_id_to_link
   doc_id_to_link: doc_id_to_link
+  jam_id_to_link: jam_id_to_link
   UTCNow: UTCNow

@@ -9,11 +9,13 @@ ROOT_FOLDER_NAME = -> Meteor.settings.folder or process.env.DRIVE_ROOT_FOLDER or
 CODEX_ACCOUNT = -> Meteor.settings.driveowner or process.env.DRIVE_OWNER_ADDRESS
 WORKSHEET_NAME = (name) -> "Worksheet: #{name}"
 DOC_NAME = (name) -> "Notes: #{name}"
+JAM_NAME = (name) -> "Whiteboard: #{name}"
 
 # Constants
 GDRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 GDRIVE_SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet'
 GDRIVE_DOC_MIME_TYPE = 'application/vnd.google-apps.document'
+GDRIVE_JAM_MIME_TYPE = 'application/vnd.google-apps.jam'
 XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 MAX_RESULTS = 200
 SPREADSHEET_TEMPLATE = Assets.getBinary 'spreadsheet-template.xlsx'
@@ -99,6 +101,11 @@ docSettings =
   driveMimeType: GDRIVE_DOC_MIME_TYPE
   uploadMimeType: 'text/plain'
   uploadTemplate: -> 'Put notes here.'
+
+jamSettings =
+  titleFunc: JAM_NAME
+  driveMimeType: GDRIVE_JAM_MIME_TYPE
+  uploadMimeType: GDRIVE_JAM_MIME_TYPE
   
 ensure = (drive, name, folder, settings) ->
   doc = apiThrottle drive.children, 'list',
@@ -111,13 +118,15 @@ ensure = (drive, name, folder, settings) ->
       title: settings.titleFunc name
       mimeType: settings.uploadMimeType
       parents: [id: folder.id]
-    doc = apiThrottle drive.files, 'insert',
-      convert: true
+    body =
       body: doc
       resource: doc
-      media:
+    if settings.uploadTemplate?
+      body.convert = true
+      body.media =
         mimeType: settings.uploadMimeType
         body: settings.uploadTemplate()
+    doc = apiThrottle drive.files, 'insert', body
   ensurePermissions drive, doc.id
   doc
 
@@ -203,10 +212,12 @@ export class Drive
     # is the spreadsheet already there?
     spreadsheet = ensure @drive, name, folder, spreadsheetSettings
     doc = ensure @drive, name, folder, docSettings
+    jam = ensure @drive, name, folder, jamSettings
     return {
       id: folder.id
       spreadId: spreadsheet.id
       docId: doc.id
+      jamId: jam.id
     }
 
   findPuzzle: (name) ->
@@ -226,10 +237,15 @@ export class Drive
       folderId: folder.id
       q: "title=#{quote DOC_NAME name}"
       maxResults: 1
+    jam = apiThrottle @drive.children, 'list',
+      folderId: folder.id
+      q: "title=#{quote JAM_NAME name}"
+      maxResults: 1
     return {
       id: folder.id
       spreadId: spread.items[0]?.id
       docId: doc.items[0]?.id
+      jamId: jam.items[0]?.id
     }
 
   listPuzzles: ->
@@ -245,7 +261,7 @@ export class Drive
       break unless resp.nextPageToken?
     results
 
-  renamePuzzle: (name, id, spreadId, docId) ->
+  renamePuzzle: (name, id, spreadId, docId, jamId) ->
     apiThrottle @drive.files, 'patch',
       fileId: id
       resource:
@@ -260,6 +276,11 @@ export class Drive
         fileId: docId
         resource:
           title: DOC_NAME name
+    if jamId?
+      apiThrottle @drive.files, 'patch',
+        fileId: jamId
+        resource:
+          title: JAM_NAME name
     'ok'
 
   deletePuzzle: (id) -> rmrfFolder @drive, id

@@ -76,6 +76,9 @@ Template.registerHelper 'spread_link', (args) ->
 Template.registerHelper 'doc_link', (args) ->
   args = keyword_or_positional 'id', args
   return model.doc_id_to_link(args.id)
+Template.registerHelper 'jam_link', (args) ->
+  args = keyword_or_positional 'id', args
+  return model.jam_id_to_link(args.id)
 
 # nicks
 Template.registerHelper 'nickOrName', (args) ->

@@ -222,7 +222,7 @@ describe 'drive', ->
               body: 'Put notes here.'
           .resolves data:
             id: 'newdoc'
-            title: 'Worksheet: New Puzzle'
+            title: 'Notes: New Puzzle'
             mimeType: 'application/vnd.google-apps.document'
             parents: [id: 'newpuzzle']
           permissions.expects('list').withArgs sinon.match
@@ -233,7 +233,36 @@ describe 'drive', ->
               fileId: 'newdoc'
               resource: perm
             .resolves data: {}
-          drive.createPuzzle 'New Puzzle'
+          children.expects('list').withArgs sinon.match
+            folderId: 'newpuzzle'
+            maxResults: 1
+            q: "title='Whiteboard: New Puzzle' and mimeType='application/vnd.google-apps.jam'"
+          .resolves data: items: []
+          jam = sinon.match
+            title: 'Whiteboard: New Puzzle'
+            mimeType: 'application/vnd.google-apps.jam'
+            parents: sinon.match.some sinon.match id: 'newpuzzle'
+          files.expects('insert').withArgs sinon.match
+            body: jam
+            resource: jam
+          .resolves data:
+            id: 'newjam'
+            title: 'Whiteboard: New Puzzle'
+            mimeType: 'application/vnd.google-apps.jam'
+            parents: [id: 'newpuzzle']
+          permissions.expects('list').withArgs sinon.match
+            fileId: 'newjam'
+          .resolves data: items: []
+          perms.forEach (perm) ->
+            permissions.expects('insert').withArgs sinon.match
+              fileId: 'newjam'
+              resource: perm
+            .resolves data: {}
+          chai.assert.include drive.createPuzzle('New Puzzle'),
+            id: 'newpuzzle'
+            spreadId: 'newsheet'
+            docId: 'newdoc'
+            jamId: 'newjam'
 
         it 'returns existing', ->
           children.expects('list').withArgs sinon.match
@@ -275,7 +304,24 @@ describe 'drive', ->
           permissions.expects('list').withArgs sinon.match
             fileId: 'newdoc'
           .resolves data: items: receivedPerms
-          drive.createPuzzle 'New Puzzle'
+          children.expects('list').withArgs sinon.match
+            folderId: 'newpuzzle'
+            maxResults: 1
+            q: "title='Whiteboard: New Puzzle' and mimeType='application/vnd.google-apps.jam'"
+          .resolves data: items: [
+            id: 'newjam'
+            title: 'Whiteboard: New Puzzle'
+            mimeType: 'application/vnd.google-apps.jam'
+            parents: [id: 'newpuzzle']
+          ]
+          permissions.expects('list').withArgs sinon.match
+            fileId: 'newjam'
+          .resolves data: items: receivedPerms
+          chai.assert.include drive.createPuzzle('New Puzzle'),
+            id: 'newpuzzle'
+            spreadId: 'newsheet'
+            docId: 'newdoc'
+            jamId: 'newjam'
 
       describe 'findPuzzle', ->
         it 'returns null when no puzzle', ->
@@ -287,7 +333,7 @@ describe 'drive', ->
           .resolves data: items: []
           chai.assert.isNull drive.findPuzzle 'New Puzzle'
         
-        it 'returns spreadsheet and doc', ->
+        it 'returns spreadsheet doc and jam', ->
           children.expects('list').withArgs sinon.match 
             folderId: 'hunt'
             q: 'title=\'New Puzzle\' and mimeType=\'application/vnd.google-apps.folder\''
@@ -319,10 +365,21 @@ describe 'drive', ->
             mimeType: 'application/vnd.google-apps.document'
             parents: [id: 'newpuzzle']
           ]
+          children.expects('list').withArgs sinon.match
+            folderId: 'newpuzzle'
+            maxResults: 1
+            q: "title='Whiteboard: New Puzzle'"
+          .resolves data: items: [
+            id: 'newjam'
+            title: 'Whiteboard: New Puzzle'
+            mimeType: 'application/vnd.google-apps.jam'
+            parents: [id: 'newpuzzle']
+          ]
           chai.assert.include drive.findPuzzle('New Puzzle'),
             id: 'newpuzzle'
             spreadId: 'newsheet'
             docId: 'newdoc'
+            jamId: 'newjam'
 
       it 'listPuzzles returns list', ->
         item1 =
@@ -365,7 +422,11 @@ describe 'drive', ->
           fileId: 'newdoc'
           resource: sinon.match title: 'Notes: Old Puzzle'
         .resolves data: {}
-        drive.renamePuzzle 'Old Puzzle', 'newpuzzle', 'newsheet', 'newdoc'
+        files.expects('patch').withArgs sinon.match
+          fileId: 'newjam'
+          resource: sinon.match title: 'Whiteboard: Old Puzzle'
+        .resolves data: {}
+        drive.renamePuzzle 'Old Puzzle', 'newpuzzle', 'newsheet', 'newdoc', 'newjam'
 
       it 'deletePuzzle deletes', ->
         children.expects('list').withArgs sinon.match

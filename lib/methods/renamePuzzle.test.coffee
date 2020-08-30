@@ -22,6 +22,7 @@ describe 'renamePuzzle', ->
         id: 'fid' # f for folder
         spreadId: 'sid'
         docId: 'did'
+        jamId: 'jid'
       renamePuzzle: sinon.spy()
       deletePuzzle: sinon.spy()
     if share.drive?
@@ -53,6 +54,7 @@ describe 'renamePuzzle', ->
         drive: 'fid'
         spreadsheet: 'sid'
         doc: 'did'
+        jam: 'jid'
         tags: {}
 
     it 'fails without login', ->
@@ -81,7 +83,7 @@ describe 'renamePuzzle', ->
           touched_by: 'cjb'
       
       it 'renames drive', ->
-        chai.assert.deepEqual driveMethods.renamePuzzle.getCall(0).args, ['Bar', 'fid', 'sid', 'did']
+        chai.assert.deepEqual driveMethods.renamePuzzle.getCall(0).args, ['Bar', 'fid', 'sid', 'did', 'jid']
 
       it 'oplogs', ->
         chai.assert.lengthOf model.Messages.find({id: id, type: 'puzzles'}).fetch(), 1
@@ -105,6 +107,7 @@ describe 'renamePuzzle', ->
         drive: 'f1'
         spreadsheet: 's1'
         doc: 'd1'
+        jam: 'j1'
         tags: {}
       id2 = model.Puzzles.insert
         name: 'Bar'
@@ -120,6 +123,7 @@ describe 'renamePuzzle', ->
         drive: 'f2'
         spreadsheet: 's2'
         doc: 'd2'
+        jam: 'j2'
         tags: {}
       ret = callAs 'renamePuzzle', 'cjb',
         id: id1
