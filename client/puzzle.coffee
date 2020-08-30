@@ -20,6 +20,7 @@ possibleViews = (puzzle) ->
   x.push 'puzzle' if embeddable puzzle?.link
   x.push 'info'
   x.push 'doc' if puzzle?.doc?
+  x.push 'jam' if puzzle?.jam?
   x
 currentViewIs = (puzzle, view) ->
   # only puzzle and round have view.
