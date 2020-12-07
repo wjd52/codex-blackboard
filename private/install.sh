@@ -26,8 +26,9 @@ cd $HOME
 curl https://install.meteor.com/ | sh
 
 # Set up apt
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
-sudo bash -c 'echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.0.list'
+sudo apt-get install gnupg
+wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
 curl -sL https://deb.nodesource.com/setup_12.x | sudo bash -
 sudo apt-get update
 sudo apt-get install -y mongodb-org nodejs software-properties-common
@@ -83,9 +84,7 @@ sudo mongo --eval 'rs.initiate({_id: "meteor", members: [{_id: 0, host: "127.0.0
 
 sudo systemctl enable codex-batch.service
   
-sudo add-apt-repository -y ppa:certbot/certbot
-sudo apt-get update
-sudo apt-get install -y certbot
+sudo snap install --classic certbot
 
 sudo certbot certonly --standalone -d $domainname
 
