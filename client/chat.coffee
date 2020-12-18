@@ -247,6 +247,7 @@ cleanupChat = ->
   try
     favicon.reset()
   instachat.mutationObserver?.disconnect()
+  instachat.readObserver?.disconnect()
   instachat.bottomObserver?.disconnect()
   clearKeepalive()
   if false # causes bouncing. just let it time out.
@@ -320,7 +321,9 @@ Template.messages.onRendered ->
     $("#messages").each ->
       console.log "Observing #{this}" unless Meteor.isProduction
       instachat.mutationObserver.observe(this, {childList: true})
-      instachat.readObserver.observe(this, {attributes: true, attributeFilter: ['data-read'], subtree: true})
+  
+  $("#messages").each ->
+    instachat.readObserver.observe(this, {attributes: true, attributeFilter: ['data-read'], subtree: true})
 
 Template.messages.events
   'click .bb-chat-load-more': (event, template) ->
