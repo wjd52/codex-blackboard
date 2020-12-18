@@ -1,6 +1,7 @@
 'use strict'
 
-import { nickEmail } from './imports/nickEmail.coffee'
+import { jitsiRoom } from './imports/jitsi.coffee'
+import { nickEmail, emailFromNickObject } from './imports/nickEmail.coffee'
 import botuser from './imports/botuser.coffee'
 import canonical from '/lib/imports/canonical.coffee'
 import { reactiveLocalStorage } from './imports/storage.coffee'
@@ -339,24 +340,135 @@ Template.chat_header.helpers
   room_name: -> prettyRoomName()
   whos_here: whos_here_helper
 
+# We need settings to load the jitsi api since it's conditional and the domain
+# is variable. This means we can't put it in the head, and putting it in the
+# body can mean the embedded chat is already rendered when it loads.
+# Therefore we set this ReactiveVar if/when it's finished loading so we
+# can retry the appropriate autorun once it loads.
+jitsiLoaded = new ReactiveVar false
+
+Meteor.startup ->
+  return unless settings.JITSI_SERVER
+  $.getScript "https://#{settings.JITSI_SERVER}/external_api.js", ->
+    jitsiLoaded.set true  
+
 Template.embedded_chat.onCreated ->
   @show_presence = new ReactiveVar false
+  @jitsi = new ReactiveVar null
+  # Intentionally staying out of the meeting.
+  @jitsiLeft = new ReactiveVar false
+  @jitsiInOtherTab = ->
+    jitsiTabUUID = reactiveLocalStorage.getItem 'jitsiTabUUID'
+    jitsiTabUUID? and jitsiTabUUID isnt settings.CLIENT_UUID
+  @leaveJitsi = ->
+    @jitsiLeft.set true
+    @jitsi.get()?.dispose()
+    @jitsi.set null
+    @jitsiRoom = null
+  @unsetCurrentJitsi = ->
+    if settings.CLIENT_UUID is reactiveLocalStorage.getItem 'jitsiTabUUID'
+      reactiveLocalStorage.removeItem 'jitsiTabUUID'
+  $(window).on('unload', @unsetCurrentJitsi)
+
+gravatarUrl = ->
+  $.gravatar(emailFromNickObject(Meteor.user()),
+    image: 'wavatar'
+    size: 200
+    secure: true
+  ).attr('src')
+
+Template.embedded_chat.onRendered ->
+  @autorun =>
+    return unless jitsiLoaded.get()
+    return if @jitsiLeft.get()
+    if @jitsiInOtherTab()
+      @leaveJitsi()
+      return
+    newRoom = jitsiRoom Session.get('type'), Session.get('id')
+    jitsi = @jitsi.get()
+    if jitsi?
+      return if newRoom is @jitsiRoom
+      jitsi.dispose()
+      @jitsi.set null
+      @jitsiRoom = null
+    if newRoom?
+      @jitsiRoom = newRoom
+      @jitsi.set new JitsiMeetExternalAPI(settings.JITSI_SERVER,
+        roomName: newRoom
+        parentNode: @find '#bb-jitsi-container'
+        interfaceConfigOverwrite:
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'desktop', 'fullscreen', \
+            'fodeviceselection', 'profile', 'sharedvideo', 'settings', \
+            'raisehand', 'videoquality', 'filmstrip', 'feedback', 'shortcuts', \
+            'tileview', 'videobackgroundblur', 'help', 'hangup' ]
+        configOverwrite:
+          # These properties are reactive, but changing them won't make us reload the room
+          # because newRoom will be the same as @jitsiRoom.
+          startWithAudioMuted: 'false' isnt reactiveLocalStorage.getItem 'startAudioMuted'
+          startWithVideoMuted: 'false' isnt reactiveLocalStorage.getItem 'startVideoMuted'
+          prejoinPageEnabled: false
+          enableTalkWhileMuted: false
+      )
+      @jitsi.get().on 'videoConferenceLeft', =>
+        @leaveJitsi()
+        reactiveLocalStorage.removeItem 'jitsiTabUUID'
+      reactiveLocalStorage.setItem 'jitsiTabUUID', settings.CLIENT_UUID
+  # If you reload the page the content of the user document won't be loaded yet.
+  # The check that newroom is different from the current room means the display
+  # name won't be set yet. This allows the display name and avatar to be set when
+  # they become available. (It also updates them if they change.)
+  @autorun =>
+    user = Meteor.user()
+    jitsi = @jitsi.get()
+    return unless jitsi?
+    jitsi.executeCommands
+      displayName: nickAndName user
+      avatarUrl: gravatarUrl()
+  # The moderator should set the conference subject.
+  @autorun =>
+    jitsi = @jitsi.get()
+    return unless jitsi?
+    subject = if 'puzzles' is Session.get 'type'
+      model.Puzzles.findOne(Session.get 'id').name ? 'Puzzle'
+    else if '0' is Session.get 'id'
+      settings.GENERAL_ROOM_NAME
+    else
+      'Video Call'
+    jitsi.executeCommand 'subject', subject
+
+Template.embedded_chat.onDestroyed ->
+  @unsetCurrentJitsi()
+  $(window).off('unload', @unsetCurrentJitsi)
+  @jitsi.get()?.dispose()
+
+nickAndName = (user) -> 
+  if user?.real_name?
+    "#{user.real_name} (#{user.nickname})"
+  else
+    user.nickname
 
 Template.embedded_chat.helpers
   show_presence: -> Template.instance().show_presence.get()
   whos_here: whos_here_helper
   email: -> nickEmail @nick
   nickAndName: (nick) ->
-    n = Meteor.users.findOne canonical nick
-    if n?.real_name?
-      "#{n.real_name} (#{n.nickname or nick})"
-    else
-      n.nickname or nick
+    user = Meteor.users.findOne canonical nick ? {nickname: nick}
+    nickAndName user
+  canJitsi: ->
+    return jitsiRoom(Session.get('type'), Session.get('id'))? and Template.instance().jitsiLeft.get()
+  otherJitsi: -> Template.instance().jitsiInOtherTab()
+  jitsiSize: ->
+    # Set up dependencies
+    return unless Template.instance().jitsi.get()?
+    Math.floor(share.Splitter.hsize.get() * 9 / 16)
 
 Template.embedded_chat.events
   'click .bb-show-whos-here': (event, template) ->
     rvar = template.show_presence
     rvar.set(not rvar.get())
+  'click .bb-join-jitsi': (event, template) ->
+    reactiveLocalStorage.setItem 'jitsiTabUUID', settings.CLIENT_UUID
+    template.jitsiLeft.set false
 
 # Utility functions
 
