@@ -84,6 +84,9 @@ if Meteor.isServer
 #   solved:  timestamp -- null (not missing or zero) if not solved
 #            (actual answer is in a tag w/ name "Answer")
 #   solved_by:  timestamp of Nick who confirmed the answer
+#   solverTime: aggregate milliseconds spent in chat while not solved.
+#               Derived from chat presence, so more frequent checkins give
+#               higher accuracy.
 #   incorrectAnswers: [ { answer: "Wrong", who: "answer submitter",
 #                         backsolve: ..., provided: ..., timestamp: ... }, ... ]
 #   tags: status: { name: "Status", value: "stuck" }, ... 
@@ -112,6 +115,7 @@ if Meteor.isServer
   Puzzles._ensureIndex {canon: 1}, {unique:true, dropDups:true}
   Puzzles._ensureIndex {feedsInto: 1}
   Puzzles._ensureIndex {puzzles: 1}
+  Puzzles._ensureIndex {solved: 1}, {partialFilterExpression: solved: $exists: true}
 
 # CallIns are:
 #   _id: mongodb id
@@ -234,6 +238,8 @@ if Meteor.isServer
 #   foreground: boolean (true if user's tab is still in foreground)
 #   foreground_uuid: identity of client with tab in foreground
 #   present: boolean (true if user is present, false if not)
+#   bot: true if this is a bot user. Used to ignore bot presence for
+#        aggregating solver minutes spent on a puzzle.
 Presence = BBCollection.presence = new Mongo.Collection "presence"
 if Meteor.isServer
   Presence._ensureIndex {nick: 1, room_name:1}, {unique:true, dropDups:true}
@@ -965,6 +971,7 @@ doc_id_to_link = (id) ->
         present: Match.Optional Boolean
         foreground: Match.Optional Boolean
         uuid: Match.Optional NonEmptyString
+        bot: Match.Optional Boolean
       # we're going to do the db operation only on the server, so that we
       # can safely use mongo's 'upsert' functionality.  otherwise
       # Meteor seems to get a little confused as it creates presence
@@ -976,24 +983,26 @@ doc_id_to_link = (id) ->
       # IN METEOR 0.6.6 upsert support was added to the client.  So let's
       # try to do this on both sides now.
       #return unless Meteor.isServer
+      set_doc =
+        present: args.present or false
+      if args.bot
+        set_doc.bot = true
+      if args.present and args.foreground
+        set_doc.foreground = true
+        set_doc.foreground_uuid = args.uuid
+
       Presence.upsert
         nick: @userId
         room_name: args.room_name
-      , $set:
+      ,
+        $max:
           timestamp: UTCNow()
-          present: args.present or false
+        $set: set_doc
       return unless args.present
       # only set foreground if true or foreground_uuid matches; this
       # prevents bouncing if user has two tabs open, and one is foregrounded
       # and the other is not.
-      if args.foreground
-        Presence.update
-          nick: @userId
-          room_name: args.room_name
-        , $set:
-          foreground: true
-          foreground_uuid: args.uuid
-      else # only update 'foreground' if uuid matches
+      unless args.foreground # only update 'foreground' if uuid matches
         Presence.update
           nick: @userId
           room_name: args.room_name
@@ -1116,7 +1125,10 @@ doc_id_to_link = (id) ->
         room_name: "puzzles/#{id}"
       objUrl = # see Router.urlFor
         Meteor._relativeToSiteRootUrl "/puzzles/#{id}"
-      body = "has requested help: #{UI._escape rawhow} (puzzle <a class=\"puzzles-link\" href=\"#{objUrl}\">#{UI._escape obj.name}</a>)"
+      solverTimePart = if obj.solverTime?
+        "; #{Math.floor(obj.solverTime / 60000)} solver-minutes"
+      else ''
+      body = "has requested help: #{UI._escape rawhow} (puzzle <a class=\"puzzles-link\" href=\"#{objUrl}\">#{UI._escape obj.name}</a>#{solverTimePart})"
       Meteor.call 'newMessage',
         action: true
         bodyIsHtml: true
@@ -1200,14 +1212,27 @@ doc_id_to_link = (id) ->
       oldAnswer = Puzzles.findOne(id)?.tags.answer?.value
       if oldAnswer is args.answer
         return false
-
       now = UTCNow()
-      updateDoc = $set:
-        solved: now
-        solved_by: @userId
-        confirmed_by: @userId
-        touched: now
-        touched_by: @userId
+      # Accumulate solver time for currrent presence
+      solverTime = 0
+      Presence.find({present: true, room_name: "puzzles/#{id}", bot: $ne: true}).forEach (present) ->
+        since = now - present.timestamp
+        if since < (PRESENCE_KEEPALIVE_MINUTES*60+10)*1000
+          # If it's been less than one keepalive interval, plus some skew, since you checked in, assume you're still here
+          solverTime += since
+        else
+          # On average you left halfway through the keepalive period.
+          solverTime += since - PRESENCE_KEEPALIVE_MINUTES*30*1000
+
+      updateDoc =
+        $set:
+          solved: now
+          solved_by: @userId
+          confirmed_by: @userId
+          touched: now
+          touched_by: @userId
+        $inc:
+          solverTime: solverTime
       c = CallIns.findOne(target: id, callin_type: callin_types.ANSWER, answer: args.answer)
       if c?
         updateDoc.$set.solved_by = c.created_by
@@ -1239,6 +1264,7 @@ doc_id_to_link = (id) ->
       , updateDoc
       return false if updated is 0
       oplog "Found an answer (#{args.answer.toUpperCase()}) to", 'puzzles', id, @userId, 'answers'
+
       # cancel any entries on the call-in queue for this puzzle
       CallIns.update {target_type: 'puzzles', target: id, status: 'pending', callin_type: callin_types.ANSWER, answer: args.answer},
         $set: status: 'accepted'
