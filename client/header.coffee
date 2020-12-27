@@ -153,14 +153,6 @@ Template.header_loginmute.helpers
     if 'true' is reactiveLocalStorage.getItem 'mute' then 'fa-volume-mute' else 'fa-volume-up'
   volumeTitle: ->
     if 'true' is reactiveLocalStorage.getItem 'mute' then 'Muted' else 'Click to mute'
-  botIcon: ->
-    if 'true' is reactiveLocalStorage.getItem 'nobot' then 'icon-bot-off' else 'icon-bot-on'
-  botTitle: ->
-    botName = botuser()?.nickname or 'The bot'
-    if 'true' is reactiveLocalStorage.getItem 'nobot'
-      "#{botName} promises not to bother you"
-    else
-      "#{botName} is feeling chatty!"
   sessionNick: -> # TODO(torgen): replace with currentUser
     user = Meteor.user()
     return unless user?
@@ -179,6 +171,8 @@ Template.header_loginmute.events
     share.Router.navigate "/edit", {trigger: true}
   "click .bb-protect": (event, template) ->
     share.Router.navigate "/", {trigger: true}
+  'click button.mute': (event, template) ->
+    reactiveLocalStorage.setItem 'mute', 'true' isnt reactiveLocalStorage.getItem 'mute'
 
 Template.connection_button.helpers
   connectStatus: Meteor.status
