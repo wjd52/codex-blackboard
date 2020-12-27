@@ -476,7 +476,6 @@ Template.embedded_chat.helpers
   jitsiPinSet: -> Template.instance().jitsiPinType.get()?
   usingJitsiPin: ->
     instance = Template.instance()
-    console.log jitsiRoom(instance.jitsiType(), instance.jitsiId()), jitsiRoom(Session.get('type'), Session.get('id'))
     jitsiRoom(instance.jitsiType(), instance.jitsiId()) isnt jitsiRoom(Session.get('type'), Session.get('id'))
   pinnedRoomName: ->
     instance = Template.instance()
