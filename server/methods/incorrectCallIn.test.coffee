@@ -66,6 +66,7 @@ describe 'incorrectCallIn', ->
         c = model.CallIns.findOne callin
         chai.assert.include c,
           status: 'rejected'
+            resolved: 7
 
       it 'oplogs', ->
         chai.assert.lengthOf model.Messages.find({type: 'puzzles', id: puzzle, stream: 'callins'}).fetch(), 1
@@ -117,9 +118,7 @@ describe 'incorrectCallIn', ->
           c = model.CallIns.findOne callin
           chai.assert.include c,
             status: 'rejected'
-
-        it 'does not add incorrectAnswer', ->
-          chai.assert.isUndefined model.Puzzles.findOne(puzzle).incorrectAnswers
+            resolved: 7
 
         it 'does not oplog', ->
           chai.assert.lengthOf model.Messages.find({type: 'puzzles', id: puzzle, stream: 'callins'}).fetch(), 0
@@ -160,9 +159,7 @@ describe 'incorrectCallIn', ->
           chai.assert.include c,
             status: 'rejected'
             response: 'sediment'
-
-        it 'does not add incorrectAnswer', ->
-          chai.assert.isUndefined model.Puzzles.findOne(puzzle).incorrectAnswers
+            resolved: 7
 
         it 'does not oplog', ->
           chai.assert.lengthOf model.Messages.find({type: 'puzzles', id: puzzle, stream: 'callins'}).fetch(), 0
@@ -230,9 +227,7 @@ describe 'incorrectCallIn', ->
           c = model.CallIns.findOne callin
           chai.assert.include c,
             status: 'rejected'
-
-        it 'does not add incorrectAnswer', ->
-          chai.assert.isUndefined model.Puzzles.findOne(puzzle).incorrectAnswers
+            resolved: 7
 
         it 'does not oplog', ->
           chai.assert.lengthOf model.Messages.find({type: 'puzzles', id: puzzle, stream: 'callins'}).fetch(), 0
@@ -273,9 +268,7 @@ describe 'incorrectCallIn', ->
           chai.assert.include c,
             status: 'rejected'
             response: 'sediment'
-
-        it 'does not add incorrectAnswer', ->
-          chai.assert.isUndefined model.Puzzles.findOne(puzzle).incorrectAnswers
+            resolved: 7
 
         it 'does not oplog', ->
           chai.assert.lengthOf model.Messages.find({type: 'puzzles', id: puzzle, stream: 'callins'}).fetch(), 0

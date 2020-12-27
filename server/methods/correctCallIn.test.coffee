@@ -85,6 +85,7 @@ describe 'correctCallIn', ->
         c = model.CallIns.findOne callin
         chai.assert.include c,
           status: 'accepted'
+          resolved: 7
 
       it 'oplogs', ->
         o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -126,7 +127,6 @@ describe 'correctCallIn', ->
         solved_by: null
         confirmed_by: null
         tags: {}
-        incorrectAnswers: []
         feedsInto: []
         puzzles: [puzzle]
       model.Puzzles.update puzzle, $push: feedsInto: meta
@@ -190,6 +190,7 @@ describe 'correctCallIn', ->
           c = model.CallIns.findOne callin
           chai.assert.include c,
             status: 'accepted'
+            resolved: 7
 
         it 'does not oplog', ->
           o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -233,6 +234,7 @@ describe 'correctCallIn', ->
         chai.assert.include c,
           status: 'accepted'
           response: 'Make us some supersaturated Kool-Aid'
+          resolved: 7
 
       it 'does not oplog', ->
         o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -271,7 +273,6 @@ describe 'correctCallIn', ->
         solved_by: null
         confirmed_by: null
         tags: {}
-        incorrectAnswers: []
         feedsInto: []
         puzzles: [puzzle]
       model.Puzzles.update puzzle, $push: feedsInto: meta
@@ -329,6 +330,7 @@ describe 'correctCallIn', ->
           c = model.CallIns.findOne callin
           chai.assert.include c,
             status: 'accepted'
+            resolved: 7
 
         it 'does not oplog', ->
           o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -372,6 +374,7 @@ describe 'correctCallIn', ->
         chai.assert.include c,
           status: 'accepted'
           response: 'Make us some supersaturated Kool-Aid'
+          resolved: 7
 
       it 'does not oplog', ->
         o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -410,7 +413,6 @@ describe 'correctCallIn', ->
         solved_by: null
         confirmed_by: null
         tags: {}
-        incorrectAnswers: []
         feedsInto: []
         puzzles: [puzzle]
       model.Puzzles.update puzzle, $push: feedsInto: meta
@@ -468,6 +470,7 @@ describe 'correctCallIn', ->
           c = model.CallIns.findOne callin
           chai.assert.include c,
             status: 'accepted'
+            resolved: 7
 
         it 'does not oplog', ->
           o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -512,6 +515,7 @@ describe 'correctCallIn', ->
         chai.assert.include c,
           status: 'accepted'
           response: 'Make us some supersaturated Kool-Aid'
+          resolved: 7
 
       it 'does not oplog', ->
         o = model.Messages.find(room_name: 'oplog/0', dawn_of_time: $ne: true).fetch()
@@ -551,7 +555,6 @@ describe 'correctCallIn', ->
         solved_by: null
         confirmed_by: null
         tags: {}
-        incorrectAnswers: []
         feedsInto: []
         puzzles: [puzzle]
       model.Puzzles.update puzzle, $push: feedsInto: meta
