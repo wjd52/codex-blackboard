@@ -23,7 +23,6 @@ chat = share.chat # import
 Template.registerHelper "equal", (a, b) -> a is b
 Template.registerHelper "less", (a, b) -> a < b
 Template.registerHelper 'any', (a..., options) ->
-  console.log a
   a.some (x) -> x
 Template.registerHelper 'not', (a) -> not a
 
