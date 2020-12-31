@@ -418,6 +418,7 @@ Template.embedded_chat.onRendered ->
             'fodeviceselection', 'profile', 'sharedvideo', 'settings', \
             'raisehand', 'videoquality', 'filmstrip', 'feedback', 'shortcuts', \
             'tileview', 'videobackgroundblur', 'help', 'hangup' ]
+          SHOW_CHROME_EXTENSION_BANNER: false
         configOverwrite:
           # These properties are reactive, but changing them won't make us reload the room
           # because newRoom will be the same as @jitsiRoom.
@@ -425,6 +426,7 @@ Template.embedded_chat.onRendered ->
           startWithVideoMuted: 'false' isnt reactiveLocalStorage.getItem 'startVideoMuted'
           prejoinPageEnabled: false
           enableTalkWhileMuted: false
+          'analytics.disabled': true
       )
       @jitsi.get().on 'videoConferenceLeft', =>
         @leaveJitsi()
