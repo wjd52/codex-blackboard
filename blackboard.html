@@ -53,7 +53,7 @@
             </button>
             <ul class="dropdown-menu pull-left bb-notification-controls">
               {{#each notificationStreams}}
-                <li><a href="#"><label for="bb-notification-{{name}}">
+                <li><a name="bb-notification-{{name}}"><label class="checkbox">
                   <input type="checkbox" id="bb-notification-{{name}}"
                         data-notification-stream="{{name}}"
                         checked="{{notificationStreamEnabled name}}">
