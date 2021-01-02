@@ -42,4 +42,3 @@ lmieulet:meteor-legacy-coverage
 meteortesting:mocha-core
 facts-base@1.0.1
 facts-ui@1.0.0
-lmieulet:meteor-coverage
