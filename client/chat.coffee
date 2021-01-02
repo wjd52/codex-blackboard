@@ -1,6 +1,6 @@
 'use strict'
 
-import { jitsiRoom } from './imports/jitsi.coffee'
+import jitsiUrl, { jitsiRoom } from './imports/jitsi.coffee'
 import { nickEmail, emailFromNickObject } from './imports/nickEmail.coffee'
 import botuser from './imports/botuser.coffee'
 import canonical from '/lib/imports/canonical.coffee'
@@ -479,6 +479,7 @@ Template.embedded_chat.helpers
       return Math.min 50, sizeWouldBe
     sizeWouldBe
   jitsiPinSet: -> Template.instance().jitsiPinType.get()?
+  jitsiUrl: -> jitsiUrl Session.get('type'), Session.get('id')
   usingJitsiPin: ->
     instance = Template.instance()
     jitsiRoom(instance.jitsiType(), instance.jitsiId()) isnt jitsiRoom(Session.get('type'), Session.get('id'))
@@ -494,6 +495,8 @@ Template.embedded_chat.events
   'click .bb-join-jitsi': (event, template) ->
     reactiveLocalStorage.setItem 'jitsiTabUUID', settings.CLIENT_UUID
     template.jitsiLeft.set false
+  'click .bb-pop-jitsi': (event, template) ->
+    template.leaveJitsi()
   'click .bb-jitsi-pin': (event, template) ->
     template.jitsiPinType.set Session.get 'type'
     template.jitsiPinId.set Session.get 'id'
