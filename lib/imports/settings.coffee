@@ -2,7 +2,9 @@
 
 import canonical from './canonical.coffee'
 import { NonEmptyString } from './match.coffee'
-import { URL } from 'meteor/url'
+if Meteor.isServer
+  # URL is global in the browser but must be imported on the server.
+  { URL } = require('url')
 
 # Global dynamic settings
 #  _id: canonical form of name
