@@ -154,7 +154,7 @@
 
 <template name="puzzle_summon_button">
 <button class="btn {{#if currentPageEquals "chat"}}btn-small{{/if}} bb-summon-btn {{#if stuck}}stuck{{else}}unstuck{{/if}} btn-inverse">
-{{#unless currentPageEquals "chat"}}<i class="fas fa-{{#if stuck}}exclama{{else}}ques{{/if}}tion-circle"></i>{{/unless}}
+{{#unless currentPageEquals "chat"}}<i class="fas fa-{{#if stuck}}lightbulb{{else}}ambulance{{/if}}"></i>{{/unless}}
 {{#if stuck}}Clear STUCK status{{else}}Flag as STUCK{{/if}}
 </button>
 </template>
