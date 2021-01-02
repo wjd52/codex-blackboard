@@ -618,6 +618,7 @@ Template.blackboard.onCreated -> this.autorun =>
 # Update 'currentTime' every minute or so to allow pretty_ts to magically
 # update
 Meteor.startup ->
+  Session.set "currentTime", model.UTCNow()
   Meteor.setInterval ->
     Session.set "currentTime", model.UTCNow()
   , 60*1000
