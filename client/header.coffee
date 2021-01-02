@@ -152,7 +152,7 @@ Template.header_loginmute.helpers
   volumeIcon: ->
     if 'true' is reactiveLocalStorage.getItem 'mute' then 'fa-volume-mute' else 'fa-volume-up'
   volumeTitle: ->
-    if 'true' is reactiveLocalStorage.getItem 'mute' then 'Muted' else 'Click to mute'
+    if 'true' is reactiveLocalStorage.getItem 'mute' then 'Muted' else 'Click to mute sound effects'
   sessionNick: -> # TODO(torgen): replace with currentUser
     user = Meteor.user()
     return unless user?
