@@ -203,6 +203,7 @@ Template.messages.helpers
     # If a message is too old, it will always be too old unless the option changes,
     # so don't re-evaluate the calculation every minute.
     result = Tracker.nonreactive =>
+      console.log @message.timestamp, Session.get('currentTime')
       @message.timestamp < Session.get('currentTime') - 3600000
     if !result
       Session.get 'currentTime'
