@@ -7,8 +7,8 @@ export jitsiRoom = (roomType, roomId) ->
   return unless roomId
   if roomId is '0'
     return unless StaticJitsiMeeting.get()
-    return "#{canonical(share.settings.TEAM_NAME)}-#{StaticJitsiMeeting.get()}"
-  "#{canonical(share.settings.TEAM_NAME)}-#{roomType}-#{roomId}"
+    return "#{canonical(share.settings.TEAM_NAME)}_#{StaticJitsiMeeting.get()}"
+  "#{canonical(share.settings.TEAM_NAME)}_#{roomType}_#{roomId}"
 
 export default jitsiUrl = (roomType, roomId) ->
   return unless share.settings.JITSI_SERVER
