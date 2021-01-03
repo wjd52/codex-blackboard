@@ -190,12 +190,17 @@ body.has-emojis {
   height: 100%;
 }
 .bb-puzzle-info-tags {
+  position: relative;
   td {
     padding: 0px 0.5em;
     vertical-align: top;
   }
-  position: relative;
-  .bb-mechanics-dropdown { position: static; }
+  .bb-mechanics-dropdown {
+    position: static;
+    .dropdown-menu {
+      top: 22px;
+    }
+  }
 }
 .bb-callin-history, .bb-puzzle-info-tags {
   tbody tr:nth-child(even), thead tr { background-color: var(--barely-darker);}
