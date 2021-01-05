@@ -53,7 +53,7 @@ will trigger the browser's notification permission dialog. Once you've enabled n
 of events you wish to receive notifications for:
 * **Announcements**: General messages for everyone. Enabled by default.
 * **Answers**: A puzzle was correctly answered. The answer will be included in the message. Clicking this notification will take you to the puzzle page. Enabled by default.
-* **Callins**: Someone is requesting an answer be called in for a puzzle. The answer will be included in the message. Clicking this notification will take you to the **Call-Ins** page. Disabled by default.
+* **Callins**: Someone is requesting an answer be called in for a puzzle. The answer will be included in the message. Clicking this notification will take you to the Call-Ins page. Disabled by default.
 * **New Puzzles**: A puzzle was unlocked. Clicking this notification will take you to the puzzle page. Disabled by default.
 * **Stuck Puzzles**: A puzzle was marked as stuck. Clicking this notification will take you to the puzzle page. Disabled by default.
 * **Favorite Mechanics**: A puzzle has been marked as using one of your **Favorite Mechanics**. Clicking this notification will take you to the puzzle page. Enabled by default.
