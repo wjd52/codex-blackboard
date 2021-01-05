@@ -70,7 +70,7 @@ If you're not sure what you should be doing, this is a good place to ask.
 Shut up, Bot!
 -------------
 The bot has some just-for-fun plugins installed, like a meme generator. If you would rather not see these messages, the
-**Settings Dropdown** contains a **Mute Bot Tomfoolery** option that will hide them. This doesn't affect important messages like responses to commands.
+**Settings Dropdown** contains a **Hide Bot Tomfoolery** option that will hide them. This doesn't affect important messages like responses to commands.
  
 Quips
 -----
