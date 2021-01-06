@@ -158,13 +158,14 @@ HQ interactions requests (including answers)
 --------------------------------------------
 When you think you need to interact with HQ, request the interaction by clicking the **Request Call-In Button** in the header of every puzzle, or using the bot.
 
-Prefer using the **Call-in Button** for anything other than a basic answer submission. It is usually, easier, and sertinly less error-prone.  
+Prefer using the **Request Call-in Button** for anything other than a basic answer submission. It is usually, easier, and sertinly less error-prone.  
 
 If a file needs to be uploaded, please upload it yourself, following the instructions from HQ.  Once the file is uploaded, call-in that we should expect a callback from HQ.
 
 <details>
   <summary>Calling in using the bot:</summary>
 The Command to call in using the bot:
+
 * This puzzle: `bot call in what a rush`
 * Backsolved: `bot call in what a rush backsolved`
 * Answer provided by HQ, e.g. after a video submission: `bot call in what a rush provided`
@@ -173,20 +174,20 @@ The Command to call in using the bot:
 * HQ will be calling for some other reason (e.g. you uploaded a video for HQ): `bot expect callback <reason>`.
 
 If you are not in that puzzle's chat, you can call in the answer from any chat by specifying the puzzle name:
+
 * Another puzzle: `bot call in what a rush for fraternity massacre backsolved`
 </details>
   
 <details>
   <summary><strong>Why shouldn't I submit the answer directly on the puzzle hunt site?</strong></summary>
 Even though every puzzle page has a link to enter an answer on it, there are several reasons to use the call-in queue instead:
+
 * Historically, HQ has called back to confirm answers. The person receiving the call needs to know to expect this call and what the answer was.
 * There may be hard or soft rate limits on calling in answers. Attempting wild guesses or duplicate answers may 
   hinder the team's ability to call in answers for that puzzle, or other puzzles.
 * Incorrect answers are recorded in the blackboard so later solvers can see what was tried.
-
 * Solving a puzzle typically unlocks new puzzles.  It is often the responsibility of the call-in queue operator
   to add these puzzles to the blackboard.  Using the queue ensures they know they should do it.
-
 * The hunt site may provide a separate form for event interactions. The team operator will know where to 
   enter the request, an update the blackboard.  Any responses from HQ will be forwarded to the 
   solvers -- usually to the puzzle chat.
