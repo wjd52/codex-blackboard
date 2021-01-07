@@ -29,7 +29,7 @@
 
 .bb-abbrev-when-narrow::before {
   content: attr(data-full);
-  @media (max-width: 767px)  {
+  @media (max-width: 1200px)  {
     content: attr(data-abbrev);
   }
 }
@@ -40,7 +40,7 @@
           border-radius: @radius;
 }
 
-@navbar-height: 101px; /* was 69px */
+@navbar-height: 40px;
 
 body {
   background: url('/img/grid_noise.png');
@@ -78,9 +78,11 @@ body {
     }
   }
 }
-.darkMode a:not(.btn) {
-  color: hsl(200,100%,80%);
-  &:hover {color: hsl(200.2,100%,95.1%);}
+.darkMode {
+  a:not(.btn), a.btn-link {
+    color: hsl(200,100%,80%);
+    &:hover {color: hsl(200.2,100%,95.1%);}
+  }
 }
 // For mobile devices which actually support native emojis:
 body.has-emojis {
@@ -129,10 +131,6 @@ body.has-emojis {
       }
     }
   }
-}
-
-.bb-chat-messages {
-  padding-top: 40px; /* allow space for breadcrumbs in navbar */
 }
 .bb-puzzleround {
   padding-right: 2px; padding-left: 2px;
@@ -206,7 +204,7 @@ body.has-emojis {
   tbody tr:nth-child(even), thead tr { background-color: var(--barely-darker);}
 }
 .bb-chat-messages {
-  margin-bottom: 26px; /* 41px navbar - 15px padding on #bb-body */
+  margin-bottom: 41px; /* 41px navbar - 15px padding on #bb-body */
 }
 .bb-chat-callin, .bb-puzzleround {
   .bb-summon-form {
@@ -221,15 +219,13 @@ body.has-emojis {
 
 #bb-body {
   padding-top: @navbar-height;
-  &.compactHeader { padding-top: @navbar-height - 21px; }
 }
 
 .bb-buttonbar {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   text-align: right;
   padding-right: 5px;
-  .compactHeader & { flex-direction: row; }
   .btn-group { text-align: left; }
   .btn-toolbar { margin-top: 0; margin-bottom: 0; }
   .tooltip-inner {
@@ -250,30 +246,43 @@ body.has-emojis {
 .bb-breadcrumbs .tooltip-inner { .bb-buttonbar .tooltip-inner; }
 .bb-breadcrumbs .tooltip.bottom .tooltip-arrow { .bb-buttonbar .tooltip.bottom .tooltip-arrow; }
 
-.bb-lastchat, .bb-lastupdate {
+.bb-lastchat {
   margin-bottom: @vert-padding;
   margin-top: @vert-padding;
-  padding: 0 (15px + @right-size) 0 (14px + @left-size);
-  & > .left { margin-left: (-@left-size); }
-  & > .right { margin-right: (-@right-size);
-                text-align: right;
-                a[title], a[data-original-title] { position:relative; }
-    .bb-pop-out { font-size: 80%; }
+  display: flex;
+  flex-flow: row nowrap;
+  flex-grow: 1;
+  flex-shrink: 1;
+  overflow: hidden;
+  .messageRow {
+    .ellipsis;
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size:14px;
+    line-height:16px;
+    height:16px;
+    .badge { line-height:12px; }
   }
-  &, .messageRow { .ellipsis; }
-}
-.bb-lastchat .messageRow {
-  margin-top: 0;
-  margin-bottom: 0;
-  font: 90%;
-  line-height: 1.25;
-}
-.bb-lastchat > .right { line-height: 16px; }
-.bb-lastchat, .bb-lastupdate {
+  .rooms{
+    width: min-content;
+    white-space: initial;
+    font-weight: bold;
+    font-size: 32px;
+    line-height: 32px;
+    padding-left: 15px;
+    display: flex;
+    flex-direction: column-reverse;
+    color: white; /* not --text-color; header is always dark. */
+  }
+  .chats {
+    padding-left: 8px;
+    display: flex;
+    flex-direction: column-reverse;
+    .ellipsis;
+    flex-grow: 1;
+    flex-shrink: 1;
+  }
   .timestamp { color: #555; }
-}
-.bb-lastupdate {
-  .comma-list { text-transform: uppercase; }
 }
 .bb-chat-presence {
   .ellipsis;
@@ -613,7 +622,8 @@ input[type=color] {
 
 /* Desktop large
 ------------------------- */
-@media (min-width: 1200px) {
+@media (max-width: 1440px) {
+  .nav li .bb-omit-when-narrow { display: none; }
 }
 
 /* Desktop
@@ -624,26 +634,19 @@ input[type=color] {
   .navbar-fixed-bottom { margin-top: 0; }
   .navbar-fixed-top {
     padding: 0;
-    .navbar-inner { padding: 0px; }
-  }
-  #bb-content > .navbar-fixed-top {
-    position: absolute;
+    position: fixed;
   }
   #messages {
-    padding-top: @navbar-height - 20px;
-    .compactHeader & {
-      padding-top: 22px;
-    }
+    padding-top: @navbar-height;
     /* Need this amount of specificity to override .row-fluid rule. */
     #bb-body .bb-splitter & { padding-top: 0px; }
   }
   .bb-puzzleround { padding-top: 0 !important; }
   .bb-chat-footer { margin-left: -20px; margin-right: -20px; }
   #bb-body {
-    padding-top: 0px;
     padding-bottom: 0;
     #bb-content > #bb-blackboard {
-      padding-top: @navbar-height - 40px;
+      padding-top: 0px;
     }
   }
   .bb-hide-status {
@@ -659,21 +662,6 @@ input[type=color] {
   /* fixup fullHeight stuff */
   html.fullHeight {
     body { padding-right: 0; padding-left: 0; }
-    #bb-content {
-      & > .bb-topbar {
-        position: absolute;
-        top: 0;
-        left: 0; right: 0; width: auto;
-        padding: 0;
-        margin: 0;
-      }
-      & > .bb-puzzleround {
-        position: absolute;
-        left: 20px; right: 20px; width: auto;
-        top: 69px; bottom: 3px; height: auto;
-        padding-top: 0;
-      }
-    }
   }
 }
 
@@ -712,8 +700,9 @@ input[type=color] {
     display: none;
   }
   #bb-body #bb-content > #bb-blackboard {
-    padding-top: @navbar-height - 40px;
+    padding-top: 0px;
   }
+  #bb-body .bb-left-content .bb-pop-full-menu { right: 16px;}
 }
 
 @media (min-width: 481px) and (max-width: 980px) {
