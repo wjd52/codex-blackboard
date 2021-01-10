@@ -214,6 +214,7 @@ Template.blackboard.helpers
     'tags.status.value': /^stuck/i
   hasJitsiLocalStorage: ->
     reactiveLocalStorage.getItem 'jitsiLocalStorage'
+  driveFolder: -> Session.get 'RINGHUNTERS_FOLDER'
 
 Template.blackboard_status_grid.helpers
   rounds: round_helper
