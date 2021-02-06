@@ -32,6 +32,10 @@ These typically come in the form of a paragraph or short poem, where some number
 
 This puzzle consists of or requires an object which will be given to the team by HQ. As a result it may be difficult for remote solvers to contribute to puzzles of this type.
 
+# Place Identification
+
+Geoguessr-style identification of a location from something like a streetview photo.
+
 # Programming
 
 A puzzle which either requires knowledge of one or more programming languages, or which involves a dataset large enough that extracting the necessary data from it manually would be impractical. (For example, you could theoretically generate a WAV file for [33 RPM](http://web.mit.edu/puzzle/www/2018/full/puzzle/33_rpm.html) by hand, but probably not before the hunt ended.)
