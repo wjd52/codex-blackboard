@@ -47,6 +47,7 @@ of events you wish to receive notifications for:
 * **New Puzzles**: A puzzle was unlocked. Clicking this notification will take you to the puzzle page. Disabled by default.
 * **Stuck Puzzles**: A puzzle was marked as stuck. Clicking this notification will take you to the puzzle page. Disabled by default.
 * **Favorite Mechanics**: A puzzle has been marked as using one of your **Favorite Mechanics**. Clicking this notification will take you to the puzzle page. Enabled by default.
+* **Private Messages**: Someone has sent you a private message. Clicking this notification will take you to the room the message was sent in. Enabled by default.
  
 Chat 
 ====
