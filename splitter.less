@@ -65,18 +65,18 @@ html.fullHeight {
           display: none;
         }
         position: absolute;
-        right: var(--right-column);
+        right: ~"calc(var(--right-column) + 16px)";
         margin-right: 6px;
-        background: white;
+        background: var(--bg-color);
         border: 1px solid #888;
         padding-left: 2px; padding-right: 4px;
-        padding-top: 5px;
+        padding-top: 0px;
       }
       .bb-left-header {
         position: absolute; right: 100%; writing-mode: vertical-lr; top:10px;
       }
       iframe {
-        padding-top: 5px; /* was 26px, but we're chosing to overlap header */
+        padding-top: 0px;
         margin-bottom: -5px;
         border-top: none;
       }
@@ -169,8 +169,9 @@ html.fullHeight {
           right: 0;
           .bb-pin-overlay {
             position: absolute;
-            top: 0; right: 0;
-            background: white;
+            top: 0;
+            right: 0;
+            background: var(--bg-color);
             border: 1px solid #888;
             padding-left: 2px; padding-right: 4px;
             border-bottom-left-radius: 5px;
@@ -183,6 +184,22 @@ html.fullHeight {
                 color: red;
               }
             }
+            .bb-jitsi-cap-height {
+              color: grey;
+              &.capped {
+                color: #49afcd;
+              }
+            }
+          }
+        }
+        .bb-chat-pop-out {
+          position: absolute; top: 0; right: 14px;
+          background: var(--bg-color);
+          border: 1px solid #888;
+          padding-left: 2px; padding-right: 4px;
+          border-bottom-left-radius: 5px;
+          &.in-margin {
+            padding-top: 5px;
           }
         }
         .bb-chat-pop-out {

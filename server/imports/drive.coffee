@@ -18,6 +18,8 @@ XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sh
 MAX_RESULTS = 200
 SPREADSHEET_TEMPLATE = Assets.getBinary 'spreadsheet-template.xlsx'
 
+PERMISSION_LIST_FIELDS = ("permissions/#{x}" for x in ['role', 'type', 'emailAddress', 'allowFileDiscovery']).join()
+
 quote = (str) -> "'#{str.replace(/([\'\\])/g, '\\$1')}'"
 
 samePerm = (p, pp) ->
@@ -42,11 +44,10 @@ ensurePermissions = (drive, id) ->
   if CODEX_ACCOUNT()?
     perms.push
       # edit permissions to codex account
-      allowFileDiscovery: true
       role: 'writer'
       type: 'user'
       emailAddress: CODEX_ACCOUNT()
-  resp = (await drive.permissions.list fileId: id).data
+  resp = (await drive.permissions.list({fileId: id, fields: PERMISSION_LIST_FIELDS})).data
   ps = []
   perms.forEach (p) ->
     # does this permission already exist?
@@ -87,7 +88,7 @@ ensure = (drive, name, folder, settings) ->
     doc =
       name: settings.titleFunc name
       mimeType: settings.driveMimeType
-      parents: [id: folder.id]
+      parents: [folder.id]
     doc = (await drive.files.create
       resource: doc
       media:
@@ -128,7 +129,7 @@ ensureFolder = (drive, name, parent) ->
     resource =
       name: name
       mimeType: GDRIVE_FOLDER_MIME_TYPE
-    resource.parents = [id: parent] if parent
+    resource.parents = [parent] if parent
     resource = (await drive.files.create(resource: resource)).data
   # give the new folder the right permissions
   {

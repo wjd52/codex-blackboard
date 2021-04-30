@@ -1,7 +1,8 @@
 'use strict'
 
-import { nickEmail } from './imports/nickEmail.coffee'
+import { gravatarUrl, nickHash, md5 } from './imports/nickEmail.coffee'
 import abbrev from '../lib/imports/abbrev.coffee'
+import canonical from '/lib/imports/canonical.coffee'
 import { human_readable, abbrev as ctabbrev } from '../lib/imports/callin_types.coffee'
 import { mechanics } from '../lib/imports/mechanics.coffee'
 import { reactiveLocalStorage } from './imports/storage.coffee'
@@ -32,6 +33,7 @@ do -> for v in ['currentPage']
 Template.registerHelper 'abbrev', abbrev
 Template.registerHelper 'callinType', human_readable
 Template.registerHelper 'callinTypeAbbrev', ctabbrev
+Template.registerHelper 'canonical', canonical
 Template.registerHelper 'currentPageEquals', (arg) ->
   # register a more precise dependency on the value of currentPage
   Session.equals 'currentPage', arg
@@ -46,13 +48,11 @@ Template.registerHelper 'editing', (args..., options) ->
   return false unless Meteor.userId() and canEdit
   return Session.equals 'editing', args.join('/')
 
+Template.registerHelper 'md5', md5
+
 Template.registerHelper 'linkify', (contents) ->
   contents = chat.convertURLsToLinksAndImages(UI._escape(contents))
   return new Spacebars.SafeString(contents)
-
-Template.registerHelper 'compactHeader', ->
-  Session.equals('currentPage', 'chat') or
-  (Session.equals('type', 'general') and Session.equals('id', '0'))
 
 Template.registerHelper 'teamName', -> settings.TEAM_NAME
 
@@ -125,6 +125,7 @@ notificationDefaults =
   'new-puzzles': false
   stuck: false
   'favorite-mechanics': true
+  'private-messages': true
 
 countDependency = new Tracker.Dependency
 
@@ -178,23 +179,33 @@ finishSetupNotifications = ->
     share.notification.set(stream, def) unless share.notification.get(stream)?
 
 Meteor.startup ->
-  now = share.model.UTCNow() + 3
+  new Clipboard '.copy-and-go'
+  now = new ReactiveVar share.model.UTCNow()
+  update = do ->
+    next = now.get()
+    push = _.debounce (-> now.set next), 1000
+    (newNext) ->
+      if newNext > next
+        next = newNext
+        push()
   suppress = true
   Tracker.autorun ->
-    return if share.notification.count() is 0 # unsubscribes
-    # Limits spam if you 
-    Meteor.subscribe 'oplogs-since', now,
-      onStop: -> suppress = true
+    if share.notification.count() is 0
+      suppress = true
+      return
+    else if suppress
+      now.set share.model.UTCNow()
+    Meteor.subscribe 'oplogs-since', now.get(),
       onReady: -> suppress = false
-  share.model.Messages.find({room_name: 'oplog/0', timestamp: $gte: now}).observeChanges
-    added: (id, msg) ->
+  share.model.Messages.find({room_name: 'oplog/0', timestamp: $gt: now.get()}).observe
+    added: (msg) ->
+      update msg.timestamp
       return unless Notification?.permission is 'granted'
       return unless share.notification.get(msg.stream)
       return if suppress
-      gravatar = $.gravatar nickEmail(msg.nick),
-        image: 'wavatar'
+      gravatar = gravatarUrl
+        gravatar_md5: nickHash(msg.nick)
         size: 192
-        secure: true
       body = msg.body
       if msg.type and msg.id
         body = "#{body} #{share.model.pretty_collection(msg.type)}
@@ -206,8 +217,8 @@ Meteor.startup ->
         data = url: share.Router.urlFor msg.type, msg.id
       share.notification.notify msg.nick,
         body: body
-        tag: id
-        icon: gravatar[0].src
+        tag: msg._id
+        icon: gravatar
         data: data
   Tracker.autorun ->
     return unless allPuzzlesHandle?.ready()
@@ -225,6 +236,31 @@ Meteor.startup ->
             tag: "#{id}/#{mech}"
             data: url: share.Router.urlFor 'puzzles', id
     faveSuppress = false
+  Tracker.autorun ->
+    return unless allPuzzlesHandle?.ready()
+    return unless Session.equals 'notifications', 'granted'
+    return unless share.notification.get 'private-messages'
+    me = Meteor.user()?._id
+    return unless me?
+    now = share.model.UTCNow()  # Intentionally not reactive
+    share.model.Messages.find(to: me, timestamp: $gt: now).observeChanges
+      added: (id, message) ->
+        [room_name, url] = if message.room_name is 'general/0'
+          [settings.GENERAL_ROOM_NAME, Meteor._relativeToSiteRootUrl '/']
+        else if message.room_name is 'callins/0'
+          ['Callin Queue', Meteor._relativeToSiteRootUrl '/callins']
+        else
+          pid = message.room_name.match(/puzzles\/(.*)/)[1]
+          ["Puzzle \"#{share.model.Puzzles.findOne(pid).name}\"", share.Router.urlFor 'puzzles', pid]
+        gravatar = gravatarUrl
+          gravatar_md5: nickHash(message.nick)
+          size: 192
+        share.notification.notify "Private message from #{message.nick} in #{room_name}",
+          body: message.body
+          tag: id
+          data: {url}
+          icon: gravatar
+  
   unless Notification?
     Session.set 'notifications', 'denied'
     return

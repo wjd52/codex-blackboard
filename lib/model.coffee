@@ -1,6 +1,7 @@
 'use strict'
 
 import canonical from './imports/canonical.coffee'
+import isDuplicateError from './imports/duplicate.coffee'
 import { ArrayMembers, ArrayWithLength, EqualsString, NumberInRange, NonEmptyString, IdOrObject, ObjectWith } from './imports/match.coffee'
 import { IsMechanic } from './imports/mechanics.coffee'
 import { getTag, isStuck, canonicalTags } from './imports/tags.coffee'
@@ -183,6 +184,7 @@ if Meteor.isServer
 #   oplog:  boolean (true for semi-automatic operation log message)
 #   presence: optional string ('join'/'part' for presence-change only)
 #   bot_ignore: optional boolean (true for messages from e.g. email or twitter)
+#   header_ignore: optional boolean (don't show in header)
 #   to:   destination of pm (optional)
 #   poll: _id of poll (optional)
 #   starred: boolean. Pins this message to the top of the puzzle page or blackboard.
@@ -210,6 +212,8 @@ if Meteor.isServer
 Messages = BBCollection.messages = new Mongo.Collection "messages"
 if Meteor.isServer
   Messages._ensureIndex {to:1, room_name:1, timestamp:-1}, {}
+  Messages._ensureIndex {to:1, timestamp:-1},
+    partialFilterExpression: to: $exists: true
   Messages._ensureIndex {nick:1, room_name:1, timestamp:-1}, {}
   Messages._ensureIndex {room_name:1, timestamp:-1}, {}
   Messages._ensureIndex {room_name:1, starred: -1, timestamp: 1},
@@ -261,12 +265,9 @@ spread_id_to_link = (id) ->
 doc_id_to_link = (id) ->
   "https://docs.google.com/document/d/#{id}/edit"
 
-(->
+do ->
   # private helpers, not exported
   unimplemented = -> throw new Meteor.Error(500, "Unimplemented")
-
-  isDuplicateError = (error) ->
-    Meteor.isServer and error?.name in ['MongoError', 'BulkWriteError'] and error?.code==11000
 
   # a key of BBCollection
   ValidType = Match.Where (x) ->
@@ -304,13 +305,7 @@ doc_id_to_link = (id) ->
       tags: canonicalTags(args.tags or [], args.who)
     for own key,value of (extra or Object.create(null))
       object[key] = value
-    try
-      object._id = collection(type).insert object
-    catch error
-      if isDuplicateError error
-        # duplicate key, fetch the real thing
-        return collection(type).findOne({canon:canonical(args.name)})
-      throw error # something went wrong, who knows what, pass it on
+    object._id = collection(type).insert object
     unless options.suppressLog
       oplog "Added", type, object._id, args.who, \
           if type in ['puzzles', 'rounds'] \
@@ -683,7 +678,9 @@ doc_id_to_link = (id) ->
         provided: !!args.provided
         status: 'pending'
       , {suppressLog:true}
-      msg = action: true
+      msg =
+        action: true
+        header_ignore: true
       # send to the general chat
       msg.body = body(specifyPuzzle: true)
       unless args?.suppressRoom is "general/0"
@@ -789,7 +786,7 @@ doc_id_to_link = (id) ->
       # one message to the general chat
       delete msg.room_name
       msg.body += " (#{puzzle.name})" if puzzle?.name?
-      Meteor.call 'newMessage', msg
+      Meteor.call 'newMessage', {msg..., header_ignore: true}
 
       if callin.callin_type is callin_types.ANSWER
         # one message to the each metapuzzle's chat
@@ -847,7 +844,7 @@ doc_id_to_link = (id) ->
       # one message to the general chat
       delete msg.room_name
       msg.body += " (#{puzzle.name})" if puzzle.name?
-      Meteor.call 'newMessage', msg
+      Meteor.call 'newMessage', {msg..., header_ignore: true}
       puzzle.feedsInto.forEach (meta) ->
         msg.room_name = "puzzles/#{meta}"
         Meteor.call 'newMessage', msg
@@ -914,6 +911,7 @@ doc_id_to_link = (id) ->
         room_name: Match.Optional NonEmptyString
         useful: Match.Optional Boolean
         bot_ignore: Match.Optional Boolean
+        header_ignore: Match.Optional Boolean
         suppressLastRead: Match.Optional Boolean
       return if this.isSimulation # suppress flicker
       suppress = args.suppressLastRead
@@ -1079,20 +1077,21 @@ doc_id_to_link = (id) ->
         type: ValidType
         object: IdOrObject
       id = args.object._id or args.object
+      name = canonical(args.name)
       # bail to deleteAnswer if this is the 'answer' tag.
-      if canonical(args.name) is 'answer'
+      if name is 'answer'
         return Meteor.call "deleteAnswer",
           type: args.type
           target: args.object
-      if canonical(args.name) is 'link'
+      if name is 'link'
         args.fields = { link: null }
         return Meteor.call 'setField', args
       args.now = UTCNow() # don't let caller lie about the time
       updateDoc = $set:
         touched: args.now
         touched_by: @userId
-      deleteTagInternal updateDoc, args.name
-      0 < collection(args.type).update id, updateDoc
+      deleteTagInternal updateDoc, name
+      0 < collection(args.type).update {_id: id, "tags.#{name}": $exists: true}, updateDoc
 
     summon: (args) ->
       check @userId, NonEmptyString
@@ -1132,6 +1131,7 @@ doc_id_to_link = (id) ->
         action: true
         bodyIsHtml: true
         body: body
+        header_ignore: true
       return
 
     unsummon: (args) ->
@@ -1162,6 +1162,7 @@ doc_id_to_link = (id) ->
       Meteor.call 'newMessage',
         action: true
         body: body
+        header_ignore: true
       return
 
     getRoundForPuzzle: (puzzle) ->
@@ -1407,7 +1408,6 @@ doc_id_to_link = (id) ->
         name: NonEmptyString
       id = args.object._id or args.object
       newDriveFolder id, args.name
-)()
 
 UTCNow = -> Date.now()
 
@@ -1432,7 +1432,6 @@ share.model =
   pretty_collection: pretty_collection
   getTag: getTag
   isStuck: isStuck
-  canonical: canonical
   drive_id_to_link: drive_id_to_link
   spread_id_to_link: spread_id_to_link
   doc_id_to_link: doc_id_to_link

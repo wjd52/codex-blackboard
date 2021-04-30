@@ -1,7 +1,7 @@
 'use strict'
 
-import { jitsiRoom } from './imports/jitsi.coffee'
-import { nickEmail, emailFromNickObject } from './imports/nickEmail.coffee'
+import jitsiUrl, { jitsiRoom } from './imports/jitsi.coffee'
+import { gravatarUrl, hashFromNickObject } from './imports/nickEmail.coffee'
 import botuser from './imports/botuser.coffee'
 import canonical from '/lib/imports/canonical.coffee'
 import { reactiveLocalStorage } from './imports/storage.coffee'
@@ -129,7 +129,6 @@ Template.poll.onCreated ->
 
 Template.poll.helpers
   show_votes: -> Template.instance().show_votes.get()
-  email: -> nickEmail @_id
   options: ->
     poll = model.Polls.findOne @
     return unless poll?
@@ -161,7 +160,6 @@ Template.poll.events
 messageTransform = (m) ->
   _id: m._id
   message: m
-  email: nickEmail m.nick
   read: ->
     # Since a message can go from unread to read, but never the other way,
     # use a nonreactive read at first. If it's unread, then do a reactive read
@@ -379,13 +377,6 @@ Template.embedded_chat.onCreated ->
       reactiveLocalStorage.removeItem 'jitsiTabUUID'
   $(window).on('unload', @unsetCurrentJitsi)
 
-gravatarUrl = ->
-  $.gravatar(emailFromNickObject(Meteor.user()),
-    image: 'wavatar'
-    size: 200
-    secure: true
-  ).attr('src')
-
 jitsiRoomSubject = (type, id) ->
   if 'puzzles' is type
     model.Puzzles.findOne(id).name ? 'Puzzle'
@@ -442,7 +433,9 @@ Template.embedded_chat.onRendered ->
     return unless jitsi?
     jitsi.executeCommands
       displayName: nickAndName user
-      avatarUrl: gravatarUrl()
+      avatarUrl: gravatarUrl
+        gravatar_md5: hashFromNickObject user
+        size: 200
   # The moderator should set the conference subject.
   @autorun =>
     jitsi = @jitsi.get()
@@ -463,7 +456,6 @@ nickAndName = (user) ->
 Template.embedded_chat.helpers
   show_presence: -> Template.instance().show_presence.get()
   whos_here: whos_here_helper
-  email: -> nickEmail @nick
   nickAndName: (nick) ->
     user = Meteor.users.findOne canonical nick ? {nickname: nick}
     nickAndName user
@@ -474,14 +466,24 @@ Template.embedded_chat.helpers
   jitsiSize: ->
     # Set up dependencies
     return unless Template.instance().jitsi.get()?
-    Math.floor(share.Splitter.hsize.get() * 9 / 16)
+    sizeWouldBe = Math.floor(share.Splitter.hsize.get() * 9 / 16)
+    if 'true' is reactiveLocalStorage.getItem 'capJitsiHeight'
+      return Math.min 50, sizeWouldBe
+    sizeWouldBe
   jitsiPinSet: -> Template.instance().jitsiPinType.get()?
+  jitsiUrl: -> jitsiUrl Session.get('type'), Session.get('id')
   usingJitsiPin: ->
     instance = Template.instance()
     jitsiRoom(instance.jitsiType(), instance.jitsiId()) isnt jitsiRoom(Session.get('type'), Session.get('id'))
   pinnedRoomName: ->
     instance = Template.instance()
     jitsiRoomSubject instance.jitsiType(), instance.jitsiId()
+  pinnedRoomUrl: ->
+    instance = Template.instance()
+    return Meteor._relativeToSiteRootUrl '/' if instance.jitsiType() is 'general'
+    share.Router.urlFor instance.jitsiType(), instance.jitsiId()
+
+  jitsiHeightCapped: -> 'true' is reactiveLocalStorage.getItem 'capJitsiHeight'
 
 Template.embedded_chat.events
   'click .bb-show-whos-here': (event, template) ->
@@ -490,12 +492,18 @@ Template.embedded_chat.events
   'click .bb-join-jitsi': (event, template) ->
     reactiveLocalStorage.setItem 'jitsiTabUUID', settings.CLIENT_UUID
     template.jitsiLeft.set false
+  'click .bb-pop-jitsi': (event, template) ->
+    template.leaveJitsi()
   'click .bb-jitsi-pin': (event, template) ->
     template.jitsiPinType.set Session.get 'type'
     template.jitsiPinId.set Session.get 'id'
   'click .bb-jitsi-unpin': (event, template) ->
     template.jitsiPinType.set null
     template.jitsiPinId.set null
+  'click .bb-jitsi-cap-height:not(.capped)': (event, template) ->
+    reactiveLocalStorage.setItem 'capJitsiHeight', true
+  'click .bb-jitsi-cap-height.capped': (event, template) ->
+    reactiveLocalStorage.setItem 'capJitsiHeight', false
 
 # Utility functions
 
@@ -508,14 +516,14 @@ doesMentionNick = (doc, raw_nick=Meteor.userId()) ->
   return false unless doc.body?
   return false if doc.system # system messages don't count as mentions
   return true if doc.nick is 'thehunt' # special alert for team email!
-  nick = model.canonical raw_nick
+  nick = canonical raw_nick
   return false if nick is doc.nick # messages from yourself don't count
   return true if doc.to is nick # PMs to you count
   n = Meteor.users.findOne nick
   realname = n?.real_name
   return false if doc.bodyIsHtml # XXX we could fix this
   # case-insensitive match of canonical nick
-  (new RegExp (regex_escape model.canonical nick), "i").test(doc.body) or \
+  (new RegExp (regex_escape canonical nick), "i").test(doc.body) or \
     # case-sensitive match of non-canonicalized nick
     doc.body.indexOf(raw_nick) >= 0 or \
     # These things are treated as mentions for everyone
@@ -681,7 +689,7 @@ Template.messages_input.onCreated -> @submit = (message) ->
       [to, rest] = rest.split(/\s+([^]*)/, 2)
       missingMessage = (not rest)
       while rest
-        n = Meteor.users.findOne model.canonical to
+        n = Meteor.users.findOne canonical to
         break if n
         if to is 'bot' # allow 'bot' as a shorthand for 'codexbot'
           to = botuser()._id
